@@ -15,24 +15,57 @@ pub mod ycchat {
     tonic::include_proto!("ycchat");
 }
 
+type UserId = String;
+type RoomId = String;
+
 #[derive(Debug)]
 struct Shared {
-    senders: HashMap<String, mpsc::Sender<ConnectResponse>>,
+    senders: HashMap<UserId, mpsc::Sender<ConnectResponse>>,
+    room_members: HashMap<RoomId, Vec<UserId>>,
 }
 
 impl Shared {
     fn new() -> Self {
+        let mut room_members = HashMap::new();
+
+        let room_id = "111".to_string(); // temp
+        let user_id = "tempUserId".to_string(); // temp
+        room_members.insert(room_id, vec![user_id]);
+
         Shared {
             senders: HashMap::new(),
+            room_members,
         }
     }
 
     async fn broadcast(&self, msg: ConnectResponse) {
-        for (name, tx) in &self.senders {
-            match tx.send(msg.clone()).await {
-                Ok(_) => {}
-                Err(_) => {
-                    println!("[Broadcast] SendError: to {}, {:?}", name, msg)
+        let room_id: Option<String> = if let Some(ref payload) = msg.payload {
+            match payload {
+                Payload::ConnectSuccess(item) => None,
+                Payload::ReceiveMessage(item) => Some(item.room_id.clone()),
+            }
+        } else {
+            None
+        };
+
+        if let Some(room_id) = room_id {
+            let room_members = if let Some(members) = self.room_members.get(&room_id) {
+                members.to_owned()
+            } else {
+                Vec::new()
+            };
+
+            println!("{:?}", room_members);
+            for (user_id, tx) in &self.senders {
+                println!("{}", user_id);
+                if !room_members.contains(user_id) {
+                    continue;
+                }
+                match tx.send(msg.clone()).await {
+                    Ok(_) => {}
+                    Err(_) => {
+                        println!("[Broadcast] SendError: to {}, {:?}", user_id, msg)
+                    }
                 }
             }
         }
@@ -59,13 +92,18 @@ impl ChatService for MyChatService {
         &self,
         request: tonic::Request<ycchat::ConnectRequest>,
     ) -> Result<tonic::Response<Self::ConnStream>, tonic::Status> {
-        let name = Ulid::new().to_string(); // FIXME
+        let user_id = request.into_inner().user_id;
+        // let user_id = request.into().user_id;
 
         let (stream_tx, stream_rx) = mpsc::channel(1); // Fn usage
 
         let (tx, mut rx) = mpsc::channel(1);
         {
-            self.shared.write().await.senders.insert(name.clone(), tx);
+            self.shared
+                .write()
+                .await
+                .senders
+                .insert(user_id.clone(), tx);
         }
 
         let shared_clone = self.shared.clone();
@@ -74,8 +112,8 @@ impl ChatService for MyChatService {
                 match stream_tx.send(Ok(msg)).await {
                     Ok(_) => {}
                     Err(_) => {
-                        println!("[Remote] stream tx sending error. Remote {}", &name);
-                        shared_clone.write().await.senders.remove(&name);
+                        println!("[Remote] stream tx sending error. Remote {}", &user_id);
+                        shared_clone.write().await.senders.remove(&user_id);
                     }
                 }
             }
@@ -101,6 +139,7 @@ impl ChatService for MyChatService {
         let message = ReceiveMessageResponse {
             id: Ulid::new().to_string(),
             owner,
+            room_id,
             message,
         };
 
