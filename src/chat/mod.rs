@@ -15,33 +15,50 @@ pub mod ycchat {
     tonic::include_proto!("ycchat");
 }
 
+use crate::redis::{self as yc_redis, RedisClient};
+
 type UserId = String;
 type RoomId = String;
 
 #[derive(Debug)]
 struct Shared {
+    redis_client: RedisClient,
     senders: HashMap<UserId, mpsc::Sender<ConnectResponse>>,
-    room_members: HashMap<RoomId, Vec<UserId>>,
 }
 
 impl Shared {
     fn new() -> Self {
-        let mut room_members = HashMap::new();
+        let redis = yc_redis::RedisClient::new();
 
-        let room_id = "111".to_string(); // temp
-        let user_id = "tempUserId".to_string(); // temp
-        room_members.insert(room_id, vec![user_id]);
+        let (tx, _) = mpsc::channel(1);
+
+        redis.chat_subscribe(tx);
 
         Shared {
+            redis_client: redis,
             senders: HashMap::new(),
-            room_members,
+        }
+    }
+
+    fn send_message(&self, msg: &ConnectResponse) {
+        let message: Option<(RoomId, String)> = if let Some(ref payload) = msg.payload {
+            match payload {
+                Payload::ConnectSuccess(_) => None,
+                Payload::ReceiveMessage(item) => Some((item.room_id.clone(), item.message.clone())),
+            }
+        } else {
+            None
+        };
+
+        if let Some((room_id, message)) = message {
+            self.redis_client.chat_publish(&room_id, &message).unwrap();
         }
     }
 
     async fn broadcast(&self, msg: ConnectResponse) {
         let room_id: Option<String> = if let Some(ref payload) = msg.payload {
             match payload {
-                Payload::ConnectSuccess(item) => None,
+                Payload::ConnectSuccess(_) => None,
                 Payload::ReceiveMessage(item) => Some(item.room_id.clone()),
             }
         } else {
@@ -49,11 +66,7 @@ impl Shared {
         };
 
         if let Some(room_id) = room_id {
-            let room_members = if let Some(members) = self.room_members.get(&room_id) {
-                members.to_owned()
-            } else {
-                Vec::new()
-            };
+            let room_members = self.redis_client.get_room_members(&room_id).unwrap();
 
             println!("{:?}", room_members);
             for (user_id, tx) in &self.senders {
@@ -106,6 +119,18 @@ impl ChatService for MyChatService {
                 .insert(user_id.clone(), tx);
         }
 
+        {
+            // 채팅방 입장 RPC로 분리 필요
+            let room_id = "111".to_string(); // temp
+
+            self.shared
+                .write()
+                .await
+                .redis_client
+                .sadd(&room_id, user_id.clone())
+                .unwrap();
+        }
+
         let shared_clone = self.shared.clone();
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
@@ -147,6 +172,8 @@ impl ChatService for MyChatService {
             id: Ulid::new().to_string(),
             payload: Some(Payload::ReceiveMessage(message.clone())),
         };
+
+        self.shared.read().await.send_message(&connect_response);
 
         self.shared.read().await.broadcast(connect_response).await;
 

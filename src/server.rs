@@ -1,6 +1,7 @@
 use tonic::transport::Server;
 
 mod chat;
+mod redis;
 
 pub mod ycchat {
     tonic::include_proto!("ycchat");
