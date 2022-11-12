@@ -97,12 +97,10 @@ impl MyChatService {
 
         let shared = Arc::new(shared);
 
+        let shared_clone = shared.clone();
         tokio::spawn(async move {
-            println!("start recv thread");
-
             while let Some(msg) = rx.recv().await {
-                // shared_clone.broadcast(&msg).await;
-                println!("WTF message: {:?}", msg);
+                shared_clone.broadcast(&msg).await;
             }
         });
 
