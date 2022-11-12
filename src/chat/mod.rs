@@ -1,5 +1,6 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
+use prost_types::Timestamp;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
 use tonic::{codegen::InterceptedService, Request, Response, Status};
@@ -20,6 +21,8 @@ use crate::redis::{self as yc_redis, RedisClient};
 
 type UserId = String;
 type RoomId = String;
+
+const METADATA_AUTH_KEY: &str = "authorization";
 
 #[derive(Debug)]
 struct Shared {
@@ -99,6 +102,56 @@ impl MyChatService {
 
 #[tonic::async_trait]
 impl ChatService for MyChatService {
+    async fn entry_chat_room(
+        &self,
+        request: tonic::Request<ycchat::EntryChatRoomRequest>,
+    ) -> Result<tonic::Response<ycchat::EntryChatRoomResponse>, tonic::Status> {
+        let user_id = request
+            .metadata()
+            .get(METADATA_AUTH_KEY)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+        let room_id = request.into_inner().room_id;
+
+        self.shared
+            .write()
+            .await
+            .redis_client
+            .add_room_member(&room_id, user_id)
+            .unwrap();
+
+        Ok(Response::new(ycchat::EntryChatRoomResponse {
+            message: "success".to_string(),
+        }))
+    }
+
+    async fn leave_chat_room(
+        &self,
+        request: tonic::Request<ycchat::LeaveChatRoomRequest>,
+    ) -> Result<tonic::Response<ycchat::LeaveChatRoomResponse>, tonic::Status> {
+        let user_id = request
+            .metadata()
+            .get(METADATA_AUTH_KEY)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+        let room_id = request.into_inner().room_id;
+
+        self.shared
+            .write()
+            .await
+            .redis_client
+            .delete_room_member(&room_id, user_id)
+            .unwrap();
+
+        Ok(Response::new(ycchat::LeaveChatRoomResponse {
+            message: "success".to_string(),
+        }))
+    }
+
     type ConnStream =
         Pin<Box<dyn Stream<Item = Result<ConnectResponse, Status>> + Send + Sync + 'static>>;
 
@@ -106,8 +159,13 @@ impl ChatService for MyChatService {
         &self,
         request: tonic::Request<ycchat::ConnectRequest>,
     ) -> Result<tonic::Response<Self::ConnStream>, tonic::Status> {
-        let user_id = request.into_inner().user_id;
-        // let user_id = request.into().user_id;
+        let user_id = request
+            .metadata()
+            .get(METADATA_AUTH_KEY)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
 
         let (stream_tx, stream_rx) = mpsc::channel(1); // Fn usage
 
@@ -118,18 +176,6 @@ impl ChatService for MyChatService {
                 .await
                 .senders
                 .insert(user_id.clone(), tx);
-        }
-
-        {
-            // 채팅방 입장 RPC로 분리 필요
-            let room_id = "111".to_string(); // temp
-
-            self.shared
-                .write()
-                .await
-                .redis_client
-                .add_room_member(&room_id, user_id.clone())
-                .unwrap();
         }
 
         let shared_clone = self.shared.clone();
@@ -156,17 +202,26 @@ impl ChatService for MyChatService {
         &self,
         request: tonic::Request<ycchat::SpeechRequest>,
     ) -> Result<tonic::Response<ycchat::SpeechResponse>, tonic::Status> {
+        let user_id = request
+            .metadata()
+            .get(METADATA_AUTH_KEY)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+
         let speech_request = request.into_inner();
 
-        let owner = "FIXME".to_string();
         let room_id = speech_request.room_id;
         let message = speech_request.message;
+        let created_at = Timestamp::from(SystemTime::now());
 
         let message = ReceiveMessageResponse {
             id: Ulid::new().to_string(),
-            owner,
+            owner: user_id,
             room_id,
             message,
+            created_at: Some(created_at),
         };
 
         let connect_response = ConnectResponse {
@@ -180,44 +235,6 @@ impl ChatService for MyChatService {
 
         Ok(Response::new(SpeechResponse {
             result: Some(message),
-        }))
-    }
-
-    async fn entry_chat_room(
-        &self,
-        request: tonic::Request<ycchat::EntryChatRoomRequest>,
-    ) -> Result<tonic::Response<ycchat::EntryChatRoomResponse>, tonic::Status> {
-        let user_id = "tmpUserId".to_string(); // FIXME
-        let room_id = request.into_inner().room_id;
-
-        self.shared
-            .write()
-            .await
-            .redis_client
-            .add_room_member(&room_id, user_id)
-            .unwrap();
-
-        Ok(Response::new(ycchat::EntryChatRoomResponse {
-            message: "success".to_string(),
-        }))
-    }
-
-    async fn leave_chat_room(
-        &self,
-        request: tonic::Request<ycchat::LeaveChatRoomRequest>,
-    ) -> Result<tonic::Response<ycchat::LeaveChatRoomResponse>, tonic::Status> {
-        let user_id = "tmpUserId".to_string(); // FIXME
-        let room_id = request.into_inner().room_id;
-
-        self.shared
-            .write()
-            .await
-            .redis_client
-            .delete_room_member(&room_id, user_id)
-            .unwrap();
-
-        Ok(Response::new(ycchat::LeaveChatRoomResponse {
-            message: "success".to_string(),
         }))
     }
 }
