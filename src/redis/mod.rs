@@ -1,7 +1,6 @@
 use std::env;
 
-use redis::{Commands, ConnectionLike, Msg, RedisResult};
-use std::sync::Arc;
+use redis::{Commands, RedisResult};
 use tokio::sync::mpsc::Sender;
 
 #[derive(Debug)]
@@ -22,7 +21,7 @@ impl RedisClient {
         let redis_conn_url = format!("{}://:{}@{}", uri_scheme, redis_password, redis_host_name);
         println!("{}", redis_conn_url);
 
-        let mut client = match redis::Client::open(redis_conn_url) {
+        let client = match redis::Client::open(redis_conn_url) {
             Ok(client) => client,
             Err(err) => panic!("{}", err),
         };

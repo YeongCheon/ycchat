@@ -2,7 +2,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
-use tonic::{Response, Status};
+use tonic::{codegen::InterceptedService, Request, Response, Status};
 use ulid::Ulid;
 use ycchat::chat_service_server::ChatService;
 
@@ -11,6 +11,7 @@ use self::ycchat::{
     ReceiveMessageResponse, SpeechResponse,
 };
 
+mod interceptor;
 pub mod ycchat {
     tonic::include_proto!("ycchat");
 }
@@ -221,9 +222,10 @@ impl ChatService for MyChatService {
     }
 }
 
-pub fn get_chat_service_server() -> ChatServiceServer<MyChatService> {
-    let chat_service = MyChatService::new();
-    let result: ChatServiceServer<MyChatService> = ChatServiceServer::new(chat_service);
+type Interceptor = fn(Request<()>) -> Result<Request<()>, Status>;
 
-    result
+pub fn get_chat_service_server() -> InterceptedService<ChatServiceServer<MyChatService>, Interceptor>
+{
+    let chat_service = MyChatService::new();
+    ChatServiceServer::with_interceptor(chat_service, interceptor::auth::check_auth)
 }
