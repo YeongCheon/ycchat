@@ -1,7 +1,10 @@
 use std::env;
 
-use redis::{Commands, RedisResult};
+use prost::Message;
+use redis::{Commands, ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
 use tokio::sync::mpsc::Sender;
+
+use crate::chat::ycchat::ReceiveMessageResponse;
 
 #[derive(Debug)]
 pub struct RedisClient {
@@ -52,28 +55,31 @@ impl RedisClient {
         conn.smembers(key)
     }
 
-    pub fn chat_subscribe(&self, tx: Sender<String>) {
+    pub fn chat_subscribe(&self, tx: Sender<ReceiveMessageResponse>) {
         let mut con = self.client.get_connection().unwrap();
 
         let channel = self.generate_chat_pubsub_key();
 
+        // tokio::task::spawn_blocking(move || tx.send(ReceiveMessageResponse::default()));
+
         tokio::spawn(async move {
-            let mut pubsub = con.as_pubsub();
-            pubsub.subscribe(channel).unwrap();
+            tokio::task::spawn_blocking(move || {
+                let mut pubsub = con.as_pubsub();
+                pubsub.subscribe(channel).unwrap();
 
-            println!("start subscribe");
-
-            while let Ok(msg) = pubsub.get_message() {
-                let payload: String = msg.get_payload().unwrap();
-                tx.send(payload).await.unwrap();
-            }
+                while let Ok(msg) = pubsub.get_message() {
+                    let payload: ReceiveMessageResponse = msg.get_payload().unwrap();
+                    tx.blocking_send(payload).unwrap();
+                }
+            })
+            .await
+            .unwrap();
         });
     }
 
     pub fn chat_publish(
         &self,
-        room_id: &String,
-        message: &String,
+        message: &ReceiveMessageResponse,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut con = self.client.get_connection().unwrap();
 
@@ -98,5 +104,40 @@ impl Clone for RedisClient {
         Self {
             client: self.client.clone(),
         }
+    }
+}
+
+impl ToRedisArgs for ReceiveMessageResponse {
+    fn write_redis_args<W>(&self, out: &mut W)
+    where
+        W: ?Sized + redis::RedisWrite,
+    {
+        out.write_arg(&self.encode_to_vec());
+    }
+}
+
+impl FromRedisValue for ReceiveMessageResponse {
+    fn from_redis_value(v: &redis::Value) -> RedisResult<Self> {
+        match v {
+            redis::Value::Data(binary_data) => {
+                let buf = &binary_data[..];
+                let receive_message = ReceiveMessageResponse::decode(buf).unwrap();
+
+                RedisResult::Ok(receive_message)
+            }
+            _ => RedisResult::Err(RedisError::from((
+                ErrorKind::ResponseError,
+                "decode fail",
+                "fail to decode ReceiveMessage.".to_string(),
+            ))),
+        }
+    }
+
+    fn from_redis_values(items: &[redis::Value]) -> RedisResult<Vec<Self>> {
+        items.iter().map(FromRedisValue::from_redis_value).collect()
+    }
+
+    fn from_byte_vec(_vec: &[u8]) -> Option<Vec<Self>> {
+        None
     }
 }

@@ -20,69 +20,64 @@ pub mod ycchat {
 use crate::redis::{self as yc_redis, RedisClient};
 
 type UserId = String;
-type RoomId = String;
 
 const METADATA_AUTH_KEY: &str = "authorization";
 
 #[derive(Debug)]
 struct Shared {
     redis_client: RedisClient,
-    senders: HashMap<UserId, mpsc::Sender<ConnectResponse>>,
+    senders: RwLock<HashMap<UserId, mpsc::Sender<ConnectResponse>>>,
 }
 
 impl Shared {
     fn new() -> Self {
         let redis = yc_redis::RedisClient::new();
 
-        let (tx, _) = mpsc::channel(1);
-
-        redis.chat_subscribe(tx);
-
+        let senders = RwLock::new(HashMap::new());
         Shared {
             redis_client: redis,
-            senders: HashMap::new(),
+            senders,
         }
     }
 
     fn send_message(&self, msg: &ConnectResponse) {
-        let message: Option<(RoomId, String)> = if let Some(ref payload) = msg.payload {
+        let message: Option<&ReceiveMessageResponse> = if let Some(ref payload) = msg.payload {
             match payload {
                 Payload::ConnectSuccess(_) => None,
-                Payload::ReceiveMessage(item) => Some((item.room_id.clone(), item.message.clone())),
+                Payload::ReceiveMessage(item) => Some(item),
             }
         } else {
             None
         };
 
-        if let Some((room_id, message)) = message {
-            self.redis_client.chat_publish(&room_id, &message).unwrap();
+        if let Some(receive_message) = message {
+            self.redis_client.chat_publish(receive_message).unwrap();
         }
     }
 
-    async fn broadcast(&self, msg: ConnectResponse) {
-        let room_id: Option<String> = if let Some(ref payload) = msg.payload {
-            match payload {
-                Payload::ConnectSuccess(_) => None,
-                Payload::ReceiveMessage(item) => Some(item.room_id.clone()),
+    async fn broadcast(&self, msg: &ReceiveMessageResponse) {
+        let room_id = &msg.room_id;
+
+        let room_members = self.redis_client.get_room_members(&room_id).unwrap();
+
+        let read_guard = self.senders.read().await;
+
+        let users = read_guard.clone(); // FIXME
+
+        for (user_id, tx) in &users {
+            if !room_members.contains(user_id) {
+                continue;
             }
-        } else {
-            None
-        };
 
-        if let Some(room_id) = room_id {
-            let room_members = self.redis_client.get_room_members(&room_id).unwrap();
+            let conn_response = ConnectResponse {
+                id: ulid::Ulid::new().to_string(),
+                payload: Some(Payload::ReceiveMessage(msg.clone())),
+            };
 
-            println!("{:?}", room_members);
-            for (user_id, tx) in &self.senders {
-                println!("{}", user_id);
-                if !room_members.contains(user_id) {
-                    continue;
-                }
-                match tx.send(msg.clone()).await {
-                    Ok(_) => {}
-                    Err(_) => {
-                        println!("[Broadcast] SendError: to {}, {:?}", user_id, msg)
-                    }
+            match tx.send(conn_response).await {
+                Ok(_) => {}
+                Err(_) => {
+                    println!("[Broadcast] SendError: to {}, {:?}", user_id, msg)
                 }
             }
         }
@@ -90,12 +85,27 @@ impl Shared {
 }
 
 pub struct MyChatService {
-    shared: Arc<RwLock<Shared>>,
+    shared: Arc<Shared>,
 }
 
 impl MyChatService {
     pub fn new() -> Self {
-        let shared = Arc::new(RwLock::new(Shared::new()));
+        let shared = Shared::new();
+        let (tx, mut rx) = mpsc::channel(32);
+
+        shared.redis_client.chat_subscribe(tx);
+
+        let shared = Arc::new(shared);
+
+        tokio::spawn(async move {
+            println!("start recv thread");
+
+            while let Some(msg) = rx.recv().await {
+                // shared_clone.broadcast(&msg).await;
+                println!("WTF message: {:?}", msg);
+            }
+        });
+
         MyChatService { shared }
     }
 }
@@ -116,8 +126,6 @@ impl ChatService for MyChatService {
         let room_id = request.into_inner().room_id;
 
         self.shared
-            .write()
-            .await
             .redis_client
             .add_room_member(&room_id, user_id)
             .unwrap();
@@ -141,8 +149,6 @@ impl ChatService for MyChatService {
         let room_id = request.into_inner().room_id;
 
         self.shared
-            .write()
-            .await
             .redis_client
             .delete_room_member(&room_id, user_id)
             .unwrap();
@@ -172,9 +178,9 @@ impl ChatService for MyChatService {
         let (tx, mut rx) = mpsc::channel(1);
         {
             self.shared
+                .senders
                 .write()
                 .await
-                .senders
                 .insert(user_id.clone(), tx);
         }
 
@@ -185,7 +191,7 @@ impl ChatService for MyChatService {
                     Ok(_) => {}
                     Err(_) => {
                         println!("[Remote] stream tx sending error. Remote {}", &user_id);
-                        shared_clone.write().await.senders.remove(&user_id);
+                        shared_clone.senders.write().await.remove(&user_id);
                     }
                 }
             }
@@ -229,9 +235,7 @@ impl ChatService for MyChatService {
             payload: Some(Payload::ReceiveMessage(message.clone())),
         };
 
-        self.shared.read().await.send_message(&connect_response);
-
-        self.shared.read().await.broadcast(connect_response).await;
+        self.shared.send_message(&connect_response);
 
         Ok(Response::new(SpeechResponse {
             result: Some(message),
