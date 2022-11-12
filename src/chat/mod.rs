@@ -127,7 +127,7 @@ impl ChatService for MyChatService {
                 .write()
                 .await
                 .redis_client
-                .sadd(&room_id, user_id.clone())
+                .add_room_member(&room_id, user_id.clone())
                 .unwrap();
         }
 
@@ -179,6 +179,44 @@ impl ChatService for MyChatService {
 
         Ok(Response::new(SpeechResponse {
             result: Some(message),
+        }))
+    }
+
+    async fn entry_chat_room(
+        &self,
+        request: tonic::Request<ycchat::EntryChatRoomRequest>,
+    ) -> Result<tonic::Response<ycchat::EntryChatRoomResponse>, tonic::Status> {
+        let user_id = "tmpUserId".to_string(); // FIXME
+        let room_id = request.into_inner().room_id;
+
+        self.shared
+            .write()
+            .await
+            .redis_client
+            .add_room_member(&room_id, user_id)
+            .unwrap();
+
+        Ok(Response::new(ycchat::EntryChatRoomResponse {
+            message: "success".to_string(),
+        }))
+    }
+
+    async fn leave_chat_room(
+        &self,
+        request: tonic::Request<ycchat::LeaveChatRoomRequest>,
+    ) -> Result<tonic::Response<ycchat::LeaveChatRoomResponse>, tonic::Status> {
+        let user_id = "tmpUserId".to_string(); // FIXME
+        let room_id = request.into_inner().room_id;
+
+        self.shared
+            .write()
+            .await
+            .redis_client
+            .delete_room_member(&room_id, user_id)
+            .unwrap();
+
+        Ok(Response::new(ycchat::LeaveChatRoomResponse {
+            message: "success".to_string(),
         }))
     }
 }

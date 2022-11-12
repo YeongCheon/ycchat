@@ -30,7 +30,7 @@ impl RedisClient {
         RedisClient { client }
     }
 
-    pub fn sadd(&self, room_id: &String, user_id: String) -> RedisResult<()> {
+    pub fn add_room_member(&self, room_id: &String, user_id: String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_room_members_key(room_id);
@@ -38,7 +38,7 @@ impl RedisClient {
         conn.sadd(key, user_id)
     }
 
-    pub fn scard(&self, room_id: &String, user_id: String) -> RedisResult<()> {
+    pub fn delete_room_member(&self, room_id: &String, user_id: String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
         let key = self.generate_room_members_key(room_id);
 
