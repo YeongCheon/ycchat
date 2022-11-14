@@ -8,8 +8,9 @@ use ulid::Ulid;
 use ycchat::chat_service_server::ChatService;
 
 use self::ycchat::{
-    chat_service_server::ChatServiceServer, connect_response::Payload, ConnectResponse,
-    ReceiveMessageResponse, SpeechResponse,
+    chat_service_server::ChatServiceServer, connect_response::Payload, ChatRoom, ChatUser,
+    ConnectResponse, ListChatRoomUsersRequest, ListChatRoomUsersResponse, ListChatRoomsRequest,
+    ListChatRoomsResponse, ReceiveMessageResponse, SpeechResponse,
 };
 
 mod interceptor;
@@ -110,6 +111,48 @@ impl MyChatService {
 
 #[tonic::async_trait]
 impl ChatService for MyChatService {
+    async fn list_chat_room_users(
+        &self,
+        request: tonic::Request<ListChatRoomUsersRequest>,
+    ) -> Result<tonic::Response<ListChatRoomUsersResponse>, tonic::Status> {
+        let room_id = request.into_inner().room_id;
+
+        let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
+
+        let users = room_members
+            .iter()
+            .map(|room_member| ChatUser {
+                id: room_member.to_string(),
+            })
+            .collect();
+
+        Ok(Response::new(ListChatRoomUsersResponse { users }))
+    }
+
+    async fn list_chat_rooms(
+        &self,
+        request: tonic::Request<ListChatRoomsRequest>,
+    ) -> Result<tonic::Response<ListChatRoomsResponse>, tonic::Status> {
+        let user_id = request
+            .metadata()
+            .get(METADATA_AUTH_KEY)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+
+        let room_ids = self.shared.redis_client.get_rooms(&user_id).unwrap();
+
+        let rooms = room_ids
+            .iter()
+            .map(|room_id| ChatRoom {
+                id: room_id.to_string(),
+            })
+            .collect();
+
+        Ok(Response::new(ListChatRoomsResponse { rooms }))
+    }
+
     async fn entry_chat_room(
         &self,
         request: tonic::Request<ycchat::EntryChatRoomRequest>,

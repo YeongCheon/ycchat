@@ -55,6 +55,14 @@ impl RedisClient {
         conn.smembers(key)
     }
 
+    pub fn get_rooms(&self, user_id: &String) -> RedisResult<Vec<String>> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_member_room_key(user_id);
+
+        conn.smembers(key)
+    }
+
     pub fn chat_subscribe(&self, tx: Sender<ReceiveMessageResponse>) {
         let mut con = self.client.get_connection().unwrap();
 
@@ -96,6 +104,10 @@ impl RedisClient {
 
     fn generate_chat_pubsub_key(&self) -> String {
         "hello world".to_string()
+    }
+
+    fn generate_member_room_key(&self, user_id: &String) -> String {
+        format!("member::{}:rooms", user_id)
     }
 }
 
