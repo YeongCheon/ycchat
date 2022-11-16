@@ -99,15 +99,15 @@ impl RedisClient {
     }
 
     fn generate_room_members_key(&self, room_id: &String) -> String {
-        format!("room::{}::members", room_id)
+        format!("ycchat::room::{}::members", room_id)
     }
 
     fn generate_chat_pubsub_key(&self) -> String {
-        "hello world".to_string()
+        "ycchat::pubsub".to_string()
     }
 
     fn generate_member_room_key(&self, user_id: &String) -> String {
-        format!("member::{}:rooms", user_id)
+        format!("ycchat::member::{}:rooms", user_id)
     }
 }
 
