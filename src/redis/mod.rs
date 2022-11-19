@@ -4,7 +4,7 @@ use prost::Message;
 use redis::{Commands, ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
 use tokio::sync::mpsc::Sender;
 
-use crate::chat::ycchat::ReceiveMessageResponse;
+use crate::chat::ycchat::ChatMessage;
 
 #[derive(Debug)]
 pub struct RedisClient {
@@ -32,7 +32,7 @@ impl RedisClient {
         RedisClient { client }
     }
 
-    pub fn add_room_member(&self, room_id: &String, user_id: String) -> RedisResult<()> {
+    pub fn add_room_member(&self, room_id: &String, user_id: &String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_room_members_key(room_id);
@@ -40,7 +40,7 @@ impl RedisClient {
         conn.sadd(key, user_id)
     }
 
-    pub fn delete_room_member(&self, room_id: &String, user_id: String) -> RedisResult<()> {
+    pub fn delete_room_member(&self, room_id: &String, user_id: &String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
         let key = self.generate_room_members_key(room_id);
 
@@ -63,7 +63,7 @@ impl RedisClient {
         conn.smembers(key)
     }
 
-    pub fn chat_subscribe(&self, tx: Sender<ReceiveMessageResponse>) {
+    pub fn chat_subscribe(&self, tx: Sender<ChatMessage>) {
         let mut con = self.client.get_connection().unwrap();
 
         let channel = self.generate_chat_pubsub_key();
@@ -76,7 +76,7 @@ impl RedisClient {
                 pubsub.subscribe(channel).unwrap();
 
                 while let Ok(msg) = pubsub.get_message() {
-                    let payload: ReceiveMessageResponse = msg.get_payload().unwrap();
+                    let payload: ChatMessage = msg.get_payload().unwrap();
                     tx.blocking_send(payload).unwrap();
                 }
             })
@@ -85,10 +85,7 @@ impl RedisClient {
         });
     }
 
-    pub fn chat_publish(
-        &self,
-        message: &ReceiveMessageResponse,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn chat_publish(&self, message: &ChatMessage) -> Result<(), Box<dyn std::error::Error>> {
         let mut con = self.client.get_connection().unwrap();
 
         let channel = self.generate_chat_pubsub_key();
@@ -119,7 +116,7 @@ impl Clone for RedisClient {
     }
 }
 
-impl ToRedisArgs for ReceiveMessageResponse {
+impl ToRedisArgs for ChatMessage {
     fn write_redis_args<W>(&self, out: &mut W)
     where
         W: ?Sized + redis::RedisWrite,
@@ -128,12 +125,12 @@ impl ToRedisArgs for ReceiveMessageResponse {
     }
 }
 
-impl FromRedisValue for ReceiveMessageResponse {
+impl FromRedisValue for ChatMessage {
     fn from_redis_value(v: &redis::Value) -> RedisResult<Self> {
         match v {
             redis::Value::Data(binary_data) => {
                 let buf = &binary_data[..];
-                let receive_message = ReceiveMessageResponse::decode(buf).unwrap();
+                let receive_message = ChatMessage::decode(buf).unwrap();
 
                 RedisResult::Ok(receive_message)
             }

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
+use prost::encoding::message;
 use prost_types::Timestamp;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
@@ -8,9 +9,9 @@ use ulid::Ulid;
 use ycchat::chat_service_server::ChatService;
 
 use self::ycchat::{
-    chat_service_server::ChatServiceServer, connect_response::Payload, ChatRoom, ChatUser,
-    ConnectResponse, ListChatRoomUsersRequest, ListChatRoomUsersResponse, ListChatRoomsRequest,
-    ListChatRoomsResponse, ReceiveMessageResponse, SpeechResponse,
+    chat_message::MessageType, chat_service_server::ChatServiceServer, connect_response::Payload,
+    ChatMessage, ChatRoom, ChatUser, ConnectResponse, ListChatRoomUsersRequest,
+    ListChatRoomUsersResponse, ListChatRoomsRequest, ListChatRoomsResponse, SpeechResponse,
 };
 
 mod interceptor;
@@ -42,22 +43,24 @@ impl Shared {
     }
 
     fn send_message(&self, msg: &ConnectResponse) {
-        let message: Option<&ReceiveMessageResponse> = if let Some(ref payload) = msg.payload {
+        let message: Option<&ChatMessage> = if let Some(ref payload) = msg.payload {
             match payload {
                 Payload::ConnectSuccess(_) => None,
-                Payload::ReceiveMessage(item) => Some(item),
+                Payload::ChatMessage(item) => Some(item),
             }
         } else {
             None
         };
 
-        if let Some(receive_message) = message {
-            self.redis_client.chat_publish(receive_message).unwrap();
+        if let Some(chat_message) = message {
+            self.redis_client.chat_publish(chat_message).unwrap();
         }
     }
 
-    async fn broadcast(&self, msg: &ReceiveMessageResponse) {
-        let room_id = &msg.room_id;
+    async fn broadcast(&self, msg: &ChatMessage) {
+        let parent = &msg.name;
+        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let room_id = parent_slice[1].to_string();
 
         let room_members = self.redis_client.get_room_members(&room_id).unwrap();
 
@@ -72,7 +75,7 @@ impl Shared {
 
             let conn_response = ConnectResponse {
                 id: ulid::Ulid::new().to_string(),
-                payload: Some(Payload::ReceiveMessage(msg.clone())),
+                payload: Some(Payload::ChatMessage(msg.clone())),
             };
 
             match tx.send(conn_response).await {
@@ -111,24 +114,6 @@ impl MyChatService {
 
 #[tonic::async_trait]
 impl ChatService for MyChatService {
-    async fn list_chat_room_users(
-        &self,
-        request: tonic::Request<ListChatRoomUsersRequest>,
-    ) -> Result<tonic::Response<ListChatRoomUsersResponse>, tonic::Status> {
-        let room_id = request.into_inner().room_id;
-
-        let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
-
-        let users = room_members
-            .iter()
-            .map(|room_member| ChatUser {
-                id: room_member.to_string(),
-            })
-            .collect();
-
-        Ok(Response::new(ListChatRoomUsersResponse { users }))
-    }
-
     async fn list_chat_rooms(
         &self,
         request: tonic::Request<ListChatRoomsRequest>,
@@ -146,11 +131,41 @@ impl ChatService for MyChatService {
         let rooms = room_ids
             .iter()
             .map(|room_id| ChatRoom {
-                id: room_id.to_string(),
+                name: format!("rooms/{}", room_id),
             })
             .collect();
 
-        Ok(Response::new(ListChatRoomsResponse { rooms }))
+        Ok(Response::new(ListChatRoomsResponse {
+            rooms,
+            total_size: 0,         // FIXME
+            next_page_token: None, // FIXME
+            prev_page_token: None, // FIXME
+        }))
+    }
+
+    async fn list_chat_room_users(
+        &self,
+        request: tonic::Request<ListChatRoomUsersRequest>,
+    ) -> Result<tonic::Response<ListChatRoomUsersResponse>, tonic::Status> {
+        let parent = request.into_inner().parent;
+        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let room_id = parent_slice[1].to_string();
+
+        let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
+
+        let users = room_members
+            .iter()
+            .map(|room_member| ChatUser {
+                name: format!("users/{}", room_member),
+            })
+            .collect();
+
+        Ok(Response::new(ListChatRoomUsersResponse {
+            users,
+            total_size: 0,
+            next_page_token: None,
+            prev_page_token: None,
+        }))
     }
 
     async fn entry_chat_room(
@@ -164,15 +179,27 @@ impl ChatService for MyChatService {
             .to_str()
             .unwrap()
             .to_string(); // FIXME
-        let room_id = request.into_inner().room_id;
+
+        let parent: String = request.into_inner().parent;
+        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let room_id = parent_slice[1].to_string();
 
         self.shared
             .redis_client
-            .add_room_member(&room_id, user_id)
+            .add_room_member(&room_id, &user_id)
             .unwrap();
 
-        Ok(Response::new(ycchat::EntryChatRoomResponse {
+        let message = ChatMessage {
+            name: format!("rooms/{}/messages/{}", room_id, Ulid::new().to_string()),
+            owner: user_id,
+            room_id,
             message: "success".to_string(),
+            message_type: MessageType::Message as i32,
+            create_time: Some(Timestamp::from(SystemTime::now())),
+        };
+
+        Ok(Response::new(ycchat::EntryChatRoomResponse {
+            result: Some(message),
         }))
     }
 
@@ -187,15 +214,27 @@ impl ChatService for MyChatService {
             .to_str()
             .unwrap()
             .to_string(); // FIXME
-        let room_id = request.into_inner().room_id;
+
+        let parent: String = request.into_inner().parent;
+        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let room_id = parent_slice[1].to_string();
 
         self.shared
             .redis_client
-            .delete_room_member(&room_id, user_id)
+            .delete_room_member(&room_id, &user_id)
             .unwrap();
 
-        Ok(Response::new(ycchat::LeaveChatRoomResponse {
+        let message = ycchat::ChatMessage {
+            name: Ulid::new().to_string(),
+            owner: user_id,
+            room_id,
             message: "success".to_string(),
+            message_type: MessageType::Message as i32,
+            create_time: Some(Timestamp::from(SystemTime::now())),
+        };
+
+        Ok(Response::new(ycchat::LeaveChatRoomResponse {
+            result: Some(message),
         }))
     }
 
@@ -259,21 +298,25 @@ impl ChatService for MyChatService {
 
         let speech_request = request.into_inner();
 
-        let room_id = speech_request.room_id;
-        let message = speech_request.message;
-        let created_at = Timestamp::from(SystemTime::now());
+        let parent: String = speech_request.parent;
+        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let room_id = parent_slice[1].to_string();
 
-        let message = ReceiveMessageResponse {
-            id: Ulid::new().to_string(),
+        let message = speech_request.message;
+        let create_time = Timestamp::from(SystemTime::now());
+
+        let message = ChatMessage {
+            name: format!("{}/messages/{}", parent, Ulid::new().to_string()),
             owner: user_id,
             room_id,
             message,
-            created_at: Some(created_at),
+            message_type: MessageType::Message as i32,
+            create_time: Some(create_time),
         };
 
         let connect_response = ConnectResponse {
             id: Ulid::new().to_string(),
-            payload: Some(Payload::ReceiveMessage(message.clone())),
+            payload: Some(Payload::ChatMessage(message.clone())),
         };
 
         self.shared.send_message(&connect_response);
@@ -281,6 +324,20 @@ impl ChatService for MyChatService {
         Ok(Response::new(SpeechResponse {
             result: Some(message),
         }))
+    }
+
+    async fn read_chat_message(
+        &self,
+        request: tonic::Request<ycchat::ReadChatMessageRequest>,
+    ) -> Result<tonic::Response<ycchat::ReadChatMessageResponse>, tonic::Status> {
+        todo!("")
+    }
+
+    async fn list_chat_messages(
+        &self,
+        request: tonic::Request<ycchat::ListChatMessagesRequest>,
+    ) -> Result<tonic::Response<ycchat::ListChatMessagesResponse>, tonic::Status> {
+        todo!("")
     }
 }
 
