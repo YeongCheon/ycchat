@@ -55,12 +55,28 @@ impl RedisClient {
         conn.smembers(key)
     }
 
+    pub fn get_room_members_count(&self, room_id: &String) -> RedisResult<u64> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_room_members_key(room_id);
+
+        conn.zcount(key, 0, -1)
+    }
+
     pub fn get_rooms(&self, user_id: &String) -> RedisResult<Vec<String>> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_member_room_key(user_id);
 
         conn.smembers(key)
+    }
+
+    pub fn get_rooms_count(&self, user_id: &String) -> RedisResult<u64> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_member_room_key(user_id);
+
+        conn.zcount(key, 0, -1)
     }
 
     pub fn chat_subscribe(&self, tx: Sender<ChatMessage>) {

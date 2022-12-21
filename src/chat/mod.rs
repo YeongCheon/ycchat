@@ -59,7 +59,7 @@ impl Shared {
 
     async fn broadcast(&self, msg: &ChatMessage) {
         let parent = &msg.name;
-        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
         let room_members = self.redis_client.get_room_members(&room_id).unwrap();
@@ -114,6 +114,9 @@ impl MyChatService {
 
 #[tonic::async_trait]
 impl ChatService for MyChatService {
+    type ConnStream =
+        Pin<Box<dyn Stream<Item = Result<ConnectResponse, Status>> + Send + Sync + 'static>>;
+
     async fn list_chat_rooms(
         &self,
         request: tonic::Request<ListChatRoomsRequest>,
@@ -127,6 +130,7 @@ impl ChatService for MyChatService {
             .to_string(); // FIXME
 
         let room_ids = self.shared.redis_client.get_rooms(&user_id).unwrap();
+        let total_size = self.shared.redis_client.get_rooms_count(&user_id).unwrap();
 
         let rooms = room_ids
             .iter()
@@ -137,7 +141,7 @@ impl ChatService for MyChatService {
 
         Ok(Response::new(ListChatRoomsResponse {
             rooms,
-            total_size: 0,         // FIXME
+            total_size,
             next_page_token: None, // FIXME
             prev_page_token: None, // FIXME
         }))
@@ -148,10 +152,15 @@ impl ChatService for MyChatService {
         request: tonic::Request<ListChatRoomUsersRequest>,
     ) -> Result<tonic::Response<ListChatRoomUsersResponse>, tonic::Status> {
         let parent = request.into_inner().parent;
-        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
         let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
+        let total_size = self
+            .shared
+            .redis_client
+            .get_room_members_count(&room_id)
+            .unwrap();
 
         let users = room_members
             .iter()
@@ -162,10 +171,24 @@ impl ChatService for MyChatService {
 
         Ok(Response::new(ListChatRoomUsersResponse {
             users,
-            total_size: 0,
+            total_size,
             next_page_token: None,
             prev_page_token: None,
         }))
+    }
+
+    async fn list_chat_messages(
+        &self,
+        request: tonic::Request<ycchat::ListChatMessagesRequest>,
+    ) -> Result<tonic::Response<ycchat::ListChatMessagesResponse>, tonic::Status> {
+        todo!("")
+    }
+
+    async fn read_chat_message(
+        &self,
+        request: tonic::Request<ycchat::ReadChatMessageRequest>,
+    ) -> Result<tonic::Response<ycchat::ReadChatMessageResponse>, tonic::Status> {
+        todo!("")
     }
 
     async fn entry_chat_room(
@@ -181,7 +204,7 @@ impl ChatService for MyChatService {
             .to_string(); // FIXME
 
         let parent: String = request.into_inner().parent;
-        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
         self.shared
@@ -216,7 +239,7 @@ impl ChatService for MyChatService {
             .to_string(); // FIXME
 
         let parent: String = request.into_inner().parent;
-        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
         self.shared
@@ -237,9 +260,6 @@ impl ChatService for MyChatService {
             result: Some(message),
         }))
     }
-
-    type ConnStream =
-        Pin<Box<dyn Stream<Item = Result<ConnectResponse, Status>> + Send + Sync + 'static>>;
 
     async fn conn(
         &self,
@@ -299,7 +319,7 @@ impl ChatService for MyChatService {
         let speech_request = request.into_inner();
 
         let parent: String = speech_request.parent;
-        let parent_slice: Vec<&str> = parent.split("/").collect();
+        let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
         let message = speech_request.message;
@@ -324,20 +344,6 @@ impl ChatService for MyChatService {
         Ok(Response::new(SpeechResponse {
             result: Some(message),
         }))
-    }
-
-    async fn read_chat_message(
-        &self,
-        request: tonic::Request<ycchat::ReadChatMessageRequest>,
-    ) -> Result<tonic::Response<ycchat::ReadChatMessageResponse>, tonic::Status> {
-        todo!("")
-    }
-
-    async fn list_chat_messages(
-        &self,
-        request: tonic::Request<ycchat::ListChatMessagesRequest>,
-    ) -> Result<tonic::Response<ycchat::ListChatMessagesResponse>, tonic::Status> {
-        todo!("")
     }
 }
 
