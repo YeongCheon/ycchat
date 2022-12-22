@@ -60,7 +60,7 @@ impl RedisClient {
 
         let key = self.generate_room_members_key(room_id);
 
-        conn.zcount(key, 0, -1)
+        conn.scard(key)
     }
 
     pub fn get_rooms(&self, user_id: &String) -> RedisResult<Vec<String>> {
