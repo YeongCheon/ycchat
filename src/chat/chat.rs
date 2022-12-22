@@ -8,17 +8,16 @@ use ulid::Ulid;
 
 use crate::redis::{self as yc_redis, RedisClient};
 
-use super::{
-    ycchat::{
-        chat_message::MessageType, connect_response::Payload, ChatMessage, ChatRoom, ChatUser,
-        ConnectRequest, ConnectResponse, EntryChatRoomRequest, EntryChatRoomResponse,
-        LeaveChatRoomRequest, LeaveChatRoomResponse, ListChatMessagesRequest,
-        ListChatMessagesResponse, ListChatRoomUsersRequest, ListChatRoomUsersResponse,
-        ListChatRoomsRequest, ListChatRoomsResponse, ReadChatMessageRequest,
-        ReadChatMessageResponse, SpeechRequest, SpeechResponse,
-    },
-    UserId,
+use super::ycchat::{
+    chat_message::MessageType, connect_response::Payload, ChatMessage, ChatRoom, ChatUser,
+    ConnectRequest, ConnectResponse, EntryChatRoomRequest, EntryChatRoomResponse,
+    LeaveChatRoomRequest, LeaveChatRoomResponse, ListChatMessagesRequest, ListChatMessagesResponse,
+    ListChatRoomUsersRequest, ListChatRoomUsersResponse, ListChatRoomsRequest,
+    ListChatRoomsResponse, ReadChatMessageRequest, ReadChatMessageResponse, SpeechRequest,
+    SpeechResponse,
 };
+
+pub type UserId = String;
 
 #[derive(Debug)]
 struct Shared {
@@ -132,7 +131,7 @@ impl ChatServerService {
         })
     }
 
-    pub async fn list_chat_room_users(
+    pub fn list_chat_room_users(
         &self,
         request: ListChatRoomUsersRequest,
     ) -> Result<ListChatRoomUsersResponse, tonic::Status> {
@@ -162,21 +161,21 @@ impl ChatServerService {
         })
     }
 
-    pub async fn list_chat_messages(
+    pub fn list_chat_messages(
         &self,
         request: ListChatMessagesRequest,
     ) -> Result<ListChatMessagesResponse, tonic::Status> {
         todo!()
     }
 
-    pub async fn read_chat_message(
+    pub fn read_chat_message(
         &self,
         request: ReadChatMessageRequest,
     ) -> Result<ReadChatMessageResponse, tonic::Status> {
         todo!()
     }
 
-    pub async fn entry_chat_room(
+    pub fn entry_chat_room(
         &self,
         user_id: &String,
         request: EntryChatRoomRequest,
@@ -204,7 +203,7 @@ impl ChatServerService {
         })
     }
 
-    pub async fn leave_chat_room(
+    pub fn leave_chat_room(
         &self,
         user_id: &String,
         request: LeaveChatRoomRequest,
@@ -269,7 +268,7 @@ impl ChatServerService {
         )))
     }
 
-    pub async fn speech(
+    pub fn speech(
         &self,
         user_id: &String,
         request: SpeechRequest,
