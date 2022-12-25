@@ -1,7 +1,10 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
 use prost_types::Timestamp;
-use tokio::sync::{mpsc, RwLock};
+use tokio::{
+    sync::{mpsc, RwLock},
+    time::Instant,
+};
 use tokio_stream::Stream;
 use tonic::{Response, Result, Status};
 use ulid::Ulid;
@@ -184,9 +187,11 @@ impl ChatServerService {
         let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
+        let now_utc_mills = chrono::Utc::now().timestamp_millis();
+
         self.shared
             .redis_client
-            .add_room_member(&room_id, user_id)
+            .add_room_member(&room_id, user_id, &now_utc_mills)
             .unwrap();
 
         let message = ChatMessage {

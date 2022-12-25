@@ -1,10 +1,15 @@
 use std::env;
 
 use prost::Message;
-use redis::{Commands, ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
-use tokio::sync::mpsc::Sender;
+use redis::{ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
 
 use crate::chat::ycchat::ChatMessage;
+
+mod chat_member_rooms;
+mod chat_message;
+mod chat_message_readed;
+mod chat_pubsub;
+mod chat_room_members;
 
 #[derive(Debug)]
 pub struct RedisClient {
@@ -30,97 +35,6 @@ impl RedisClient {
         };
 
         RedisClient { client }
-    }
-
-    pub fn add_room_member(&self, room_id: &String, user_id: &String) -> RedisResult<()> {
-        let mut conn = self.client.get_connection().unwrap();
-
-        let key = self.generate_room_members_key(room_id);
-
-        conn.sadd(key, user_id)
-    }
-
-    pub fn delete_room_member(&self, room_id: &String, user_id: &String) -> RedisResult<()> {
-        let mut conn = self.client.get_connection().unwrap();
-        let key = self.generate_room_members_key(room_id);
-
-        conn.srem(key, user_id)
-    }
-
-    pub fn get_room_members(&self, room_id: &String) -> RedisResult<Vec<String>> {
-        let mut conn = self.client.get_connection().unwrap();
-
-        let key = self.generate_room_members_key(room_id);
-
-        conn.smembers(key)
-    }
-
-    pub fn get_room_members_count(&self, room_id: &String) -> RedisResult<u64> {
-        let mut conn = self.client.get_connection().unwrap();
-
-        let key = self.generate_room_members_key(room_id);
-
-        conn.scard(key)
-    }
-
-    pub fn get_rooms(&self, user_id: &String) -> RedisResult<Vec<String>> {
-        let mut conn = self.client.get_connection().unwrap();
-
-        let key = self.generate_member_room_key(user_id);
-
-        conn.smembers(key)
-    }
-
-    pub fn get_rooms_count(&self, user_id: &String) -> RedisResult<u64> {
-        let mut conn = self.client.get_connection().unwrap();
-
-        let key = self.generate_member_room_key(user_id);
-
-        conn.zcount(key, 0, -1)
-    }
-
-    pub fn chat_subscribe(&self, tx: Sender<ChatMessage>) {
-        let mut con = self.client.get_connection().unwrap();
-
-        let channel = self.generate_chat_pubsub_key();
-
-        // tokio::task::spawn_blocking(move || tx.send(ReceiveMessageResponse::default()));
-
-        tokio::spawn(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut pubsub = con.as_pubsub();
-                pubsub.subscribe(channel).unwrap();
-
-                while let Ok(msg) = pubsub.get_message() {
-                    let payload: ChatMessage = msg.get_payload().unwrap();
-                    tx.blocking_send(payload).unwrap();
-                }
-            })
-            .await
-            .unwrap();
-        });
-    }
-
-    pub fn chat_publish(&self, message: &ChatMessage) -> Result<(), Box<dyn std::error::Error>> {
-        let mut con = self.client.get_connection().unwrap();
-
-        let channel = self.generate_chat_pubsub_key();
-
-        con.publish(channel, message)?;
-
-        Ok(())
-    }
-
-    fn generate_room_members_key(&self, room_id: &String) -> String {
-        format!("ycchat::room::{}::members", room_id)
-    }
-
-    fn generate_chat_pubsub_key(&self) -> String {
-        "ycchat::pubsub".to_string()
-    }
-
-    fn generate_member_room_key(&self, user_id: &String) -> String {
-        format!("ycchat::member::{}:rooms", user_id)
     }
 }
 
