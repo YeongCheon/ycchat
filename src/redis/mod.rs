@@ -5,6 +5,7 @@ use redis::{ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
 
 use crate::chat::ycchat::ChatMessage;
 
+mod chat_latest_message;
 mod chat_member_rooms;
 mod chat_message;
 mod chat_message_readed;

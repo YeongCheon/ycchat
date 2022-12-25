@@ -1,12 +1,9 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
 use prost_types::Timestamp;
-use tokio::{
-    sync::{mpsc, RwLock},
-    time::Instant,
-};
+use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
-use tonic::{Response, Result, Status};
+use tonic::{Result, Status};
 use ulid::Ulid;
 
 use crate::redis::{self as yc_redis, RedisClient};
