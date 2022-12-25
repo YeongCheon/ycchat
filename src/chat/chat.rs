@@ -1,5 +1,6 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use prost_types::Timestamp;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
@@ -184,21 +185,30 @@ impl ChatServerService {
         let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
-        let now_utc_mills = chrono::Utc::now().timestamp_millis();
+        let now = chrono::Utc::now();
+        let create_time = now.timestamp_millis();
+        let timestamp = self.convert_date_time(&now);
 
         self.shared
             .redis_client
-            .add_room_member(&room_id, user_id, &now_utc_mills)
+            .add_room_member(&room_id, user_id, &create_time)
             .unwrap();
 
         let message = ChatMessage {
             name: format!("rooms/{}/messages/{}", room_id, Ulid::new().to_string()),
             owner: user_id.clone(),
             room_id,
-            message: "success".to_string(),
-            message_type: MessageType::Message as i32,
-            create_time: Some(Timestamp::from(SystemTime::now())),
+            message: format!("{} has entered.", user_id),
+            message_type: MessageType::ChatRoomEntryUser as i32,
+            create_time: Some(timestamp),
         };
+
+        let connect_response = ConnectResponse {
+            id: Ulid::new().to_string(),
+            payload: Some(Payload::ChatMessage(message.clone())),
+        };
+
+        self.shared.send_message(&connect_response);
 
         Ok(EntryChatRoomResponse {
             result: Some(message),
@@ -216,17 +226,27 @@ impl ChatServerService {
 
         self.shared
             .redis_client
-            .delete_room_member(&room_id, &user_id)
+            .delete_room_member(&room_id, user_id)
             .unwrap();
+
+        let now = chrono::Utc::now();
+        let create_time = self.convert_date_time(&now);
 
         let message = ChatMessage {
             name: Ulid::new().to_string(),
             owner: user_id.clone(),
             room_id,
-            message: "success".to_string(),
-            message_type: MessageType::Message as i32,
-            create_time: Some(Timestamp::from(SystemTime::now())),
+            message: format!("{} has left.", user_id),
+            message_type: MessageType::ChatRoomLeaveUser as i32,
+            create_time: Some(create_time),
         };
+
+        let connect_response = ConnectResponse {
+            id: Ulid::new().to_string(),
+            payload: Some(Payload::ChatMessage(message.clone())),
+        };
+
+        self.shared.send_message(&connect_response);
 
         Ok(LeaveChatRoomResponse {
             result: Some(message),
@@ -307,5 +327,20 @@ impl ChatServerService {
         Ok(SpeechResponse {
             result: Some(message),
         })
+    }
+
+    fn convert_date_time(&self, date_time: &DateTime<Utc>) -> Timestamp {
+        {
+            let year = date_time.year() as i64;
+            let month = date_time.month() as u8;
+            let day = date_time.day() as u8;
+            let hour = date_time.hour() as u8;
+            let minute = date_time.minute() as u8;
+            let second = date_time.second() as u8;
+            let nanos = date_time.timestamp_subsec_nanos();
+
+            Timestamp::date_time_nanos(year, month, day, hour, minute, second, nanos)
+        }
+        .unwrap()
     }
 }
