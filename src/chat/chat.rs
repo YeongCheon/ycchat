@@ -282,10 +282,12 @@ impl ChatServerService {
         let message = request.message;
         let create_time = Timestamp::from(SystemTime::now());
 
+        let message_id = Ulid::new().to_string();
+
         let message = ChatMessage {
-            name: format!("{}/messages/{}", parent, Ulid::new().to_string()),
+            name: format!("{}/messages/{}", parent, message_id),
             owner: user_id.clone(),
-            room_id,
+            room_id: room_id.clone(),
             message,
             message_type: MessageType::Message as i32,
             create_time: Some(create_time),
@@ -297,6 +299,10 @@ impl ChatServerService {
         };
 
         self.shared.send_message(&connect_response);
+        self.shared
+            .redis_client
+            .set_latest_message(&room_id, &message_id)
+            .unwrap();
 
         Ok(SpeechResponse {
             result: Some(message),

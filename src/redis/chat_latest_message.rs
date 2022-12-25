@@ -3,7 +3,7 @@ use redis::{Commands, RedisResult};
 use super::RedisClient;
 
 impl RedisClient {
-    fn set_latest_message(&self, room_id: &String, message_id: &String) -> RedisResult<()> {
+    pub fn set_latest_message(&self, room_id: &String, message_id: &String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_latest_message_key(room_id);
@@ -11,7 +11,7 @@ impl RedisClient {
         conn.set(key, message_id)
     }
 
-    fn delete_latest_message(&self, room_id: &String) -> RedisResult<()> {
+    pub fn delete_latest_message(&self, room_id: &String) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_latest_message_key(room_id);
