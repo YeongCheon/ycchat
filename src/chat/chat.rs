@@ -10,12 +10,12 @@ use ulid::Ulid;
 use crate::redis::{self as yc_redis, RedisClient};
 
 use super::ycchat::{
-    chat_message::MessageType, connect_response::Payload, ChatMessage, ChatRoom, ChatUser,
-    ConnectRequest, ConnectResponse, EntryChatRoomRequest, EntryChatRoomResponse,
-    LeaveChatRoomRequest, LeaveChatRoomResponse, ListChatMessagesRequest, ListChatMessagesResponse,
-    ListChatRoomUsersRequest, ListChatRoomUsersResponse, ListChatRoomsRequest,
-    ListChatRoomsResponse, ReadChatMessageRequest, ReadChatMessageResponse, SpeechRequest,
-    SpeechResponse,
+    chat_message::MessageType, chat_room::ChatRoomType, connect_response::Payload, ChatMessage,
+    ChatRoom, ChatUser, ConnectRequest, ConnectResponse, EntryChatRoomRequest,
+    EntryChatRoomResponse, LeaveChatRoomRequest, LeaveChatRoomResponse, ListChatMessagesRequest,
+    ListChatMessagesResponse, ListChatRoomUsersRequest, ListChatRoomUsersResponse,
+    ListChatRoomsRequest, ListChatRoomsResponse, ReadChatMessageRequest, ReadChatMessageResponse,
+    SpeechRequest, SpeechResponse,
 };
 
 pub type UserId = String;
@@ -121,6 +121,7 @@ impl ChatServerService {
             .iter()
             .map(|room_id| ChatRoom {
                 name: format!("rooms/{}", room_id),
+                chat_room_type: ChatRoomType::Public as i32,
             })
             .collect();
 
