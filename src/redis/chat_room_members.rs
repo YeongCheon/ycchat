@@ -31,6 +31,14 @@ impl RedisClient {
         conn.zrange(key, 0, -1)
     }
 
+    pub fn get_room_member_score(&self, room_id: &String, user_id: &String) -> RedisResult<i64> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_room_members_key(room_id);
+
+        conn.zscore(key, user_id)
+    }
+
     pub fn get_room_members_count(&self, room_id: &String) -> RedisResult<u64> {
         let mut conn = self.client.get_connection().unwrap();
 

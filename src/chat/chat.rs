@@ -4,7 +4,7 @@ use chrono::{DateTime, Datelike, Timelike, Utc};
 use prost_types::Timestamp;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
-use tonic::{Result, Status};
+use tonic::{codegen::http::StatusCode, Result, Status};
 use ulid::Ulid;
 
 use crate::redis::{self as yc_redis, RedisClient};
@@ -293,7 +293,7 @@ impl ChatServerService {
 
     pub fn speech(
         &self,
-        user_id: &String,
+        user_id: &str,
         request: SpeechRequest,
     ) -> Result<SpeechResponse, tonic::Status> {
         let parent: String = request.parent;
@@ -307,12 +307,22 @@ impl ChatServerService {
 
         let message = ChatMessage {
             name: format!("{}/messages/{}", parent, message_id),
-            owner: user_id.clone(),
+            owner: user_id.to_owned(),
             room_id: room_id.clone(),
             message,
             message_type: MessageType::Message as i32,
             create_time: Some(create_time),
         };
+
+        let is_exist = self
+            .shared
+            .redis_client
+            .get_room_member_score(&room_id, &user_id.to_owned())
+            .is_ok();
+
+        if !is_exist {
+            return Err(Status::permission_denied("no permission"));
+        }
 
         let connect_response = ConnectResponse {
             id: Ulid::new().to_string(),
