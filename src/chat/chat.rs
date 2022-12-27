@@ -122,6 +122,7 @@ impl ChatServerService {
             .map(|room_id| ChatRoom {
                 name: format!("rooms/{}", room_id),
                 chat_room_type: ChatRoomType::Public as i32,
+                unread_message_count: 0, // FIXME
             })
             .collect();
 
