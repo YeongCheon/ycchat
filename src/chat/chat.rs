@@ -115,14 +115,28 @@ impl ChatServerService {
         request: ListChatRoomsRequest,
     ) -> Result<ListChatRoomsResponse, tonic::Status> {
         let room_ids = self.shared.redis_client.get_rooms(&user_id).unwrap();
+
         let total_size = self.shared.redis_client.get_rooms_count(&user_id).unwrap();
+        let unread_count_list = if !room_ids.is_empty() {
+            self.shared
+                .redis_client
+                .get_unread_message_counts(&user_id, &room_ids)
+                .unwrap()
+        } else {
+            vec![]
+        };
 
         let rooms = room_ids
             .iter()
-            .map(|room_id| ChatRoom {
+            .enumerate()
+            .map(|(idx, room_id)| ChatRoom {
                 name: format!("rooms/{}", room_id),
                 chat_room_type: ChatRoomType::Public as i32,
-                unread_message_count: 0, // FIXME
+                unread_message_count: if unread_count_list.is_empty() {
+                    0
+                } else {
+                    unread_count_list[idx].unwrap_or(0) as u64
+                },
             })
             .collect();
 

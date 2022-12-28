@@ -11,6 +11,7 @@ mod chat_message;
 mod chat_message_readed;
 mod chat_pubsub;
 mod chat_room_members;
+mod chat_unread_message_count;
 
 #[derive(Debug)]
 pub struct RedisClient {
