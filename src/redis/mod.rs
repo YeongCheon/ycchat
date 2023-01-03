@@ -7,10 +7,11 @@ use crate::chat::ycchat::ChatMessage;
 
 mod chat_latest_message;
 mod chat_member_rooms;
-mod chat_message;
 mod chat_message_readed;
 mod chat_pubsub;
+mod chat_room_latest_message;
 mod chat_room_members;
+mod chat_room_message;
 mod chat_unread_message_count;
 
 #[derive(Debug)]

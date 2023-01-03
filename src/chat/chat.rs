@@ -167,8 +167,7 @@ impl ChatServerService {
         request: ListChatRoomUsersRequest,
     ) -> Result<ListChatRoomUsersResponse, tonic::Status> {
         let parent = request.parent;
-        let parent_slice: Vec<&str> = parent.split('/').collect();
-        let room_id = parent_slice[1].to_string();
+        let room_id = self.get_room_id(&parent);
 
         let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
         let total_size = self
@@ -196,7 +195,54 @@ impl ChatServerService {
         &self,
         request: ListChatMessagesRequest,
     ) -> Result<ListChatMessagesResponse, tonic::Status> {
-        todo!()
+        let parent = request.parent;
+        let room_id = self.get_room_id(&parent);
+
+        let message_ids = self
+            .shared
+            .redis_client
+            .get_latest_room_message_list(&room_id)
+            .unwrap();
+
+        let messages_redis_result = self
+            .shared
+            .redis_client
+            .get_chat_room_messages(&room_id, &message_ids)
+            .unwrap();
+
+        let messages = {
+            let messages_vec = if !message_ids.is_empty() {
+                self.shared
+                    .redis_client
+                    .get_chat_room_messages(&room_id, &message_ids)
+                    .unwrap()
+            } else {
+                vec![]
+            };
+
+            message_ids
+                .iter()
+                .enumerate()
+                .filter(|(idx, message_id)| messages_vec[*idx].is_some())
+                .map(|(idx, message_id)| -> ChatMessage {
+                    let res = &messages_vec[idx];
+                    res.clone().unwrap() // FIXME: remove clone
+                })
+                .collect()
+        };
+
+        let total_size = self
+            .shared
+            .redis_client
+            .get_chat_room_message_count(&room_id)
+            .unwrap();
+
+        Ok(ListChatMessagesResponse {
+            messages,
+            total_size,
+            next_page_token: None, // FIXME
+            prev_page_token: None, // FIXME
+        })
     }
 
     pub fn read_chat_message(
@@ -219,19 +265,26 @@ impl ChatServerService {
         let create_time = now.timestamp_millis();
         let timestamp = self.convert_date_time(&now);
 
+        let message_id = Ulid::new().to_string();
+
+        let message = ChatMessage {
+            name: format!("rooms/{}/messages/{}", room_id, message_id),
+            owner: user_id.clone(),
+            room_id: room_id.clone(),
+            message: format!("{} has entered.", user_id),
+            message_type: MessageType::ChatRoomEntryUser as i32,
+            create_time: Some(timestamp),
+        };
+
         self.shared
             .redis_client
             .add_room_member(&room_id, user_id, &create_time)
             .unwrap();
 
-        let message = ChatMessage {
-            name: format!("rooms/{}/messages/{}", room_id, Ulid::new().to_string()),
-            owner: user_id.clone(),
-            room_id,
-            message: format!("{} has entered.", user_id),
-            message_type: MessageType::ChatRoomEntryUser as i32,
-            create_time: Some(timestamp),
-        };
+        self.shared
+            .redis_client
+            .add_chat_room_message(&room_id, &message_id, &message)
+            .unwrap();
 
         let connect_response = ConnectResponse {
             id: Ulid::new().to_string(),
@@ -359,6 +412,11 @@ impl ChatServerService {
         };
 
         self.shared.send_message(&connect_response);
+
+        self.shared
+            .redis_client
+            .add_chat_room_message(&room_id, &message_id, &message);
+
         self.shared
             .redis_client
             .set_latest_message(&room_id, &message_id)
@@ -367,6 +425,13 @@ impl ChatServerService {
         Ok(SpeechResponse {
             result: Some(message),
         })
+    }
+
+    fn get_room_id(&self, parent: &str) -> String {
+        let parent_slice: Vec<&str> = parent.split('/').collect();
+        let room_id = parent_slice[1].to_string();
+
+        return room_id;
     }
 
     fn convert_date_time(&self, date_time: &DateTime<Utc>) -> Timestamp {
