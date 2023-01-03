@@ -4,7 +4,7 @@ use chrono::{DateTime, Datelike, Timelike, Utc};
 use prost_types::Timestamp;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
-use tonic::{codegen::http::StatusCode, Result, Status};
+use tonic::{Result, Status};
 use ulid::Ulid;
 
 use crate::redis::{self as yc_redis, RedisClient};
@@ -51,6 +51,9 @@ impl Shared {
         };
 
         if let Some(chat_message) = message {
+            let room_id = chat_message.room_id.clone();
+            let message_id = chat_message.name.clone();
+
             self.redis_client.chat_publish(chat_message).unwrap();
         }
     }
@@ -84,6 +87,14 @@ impl Shared {
             }
         }
     }
+
+    pub async fn incr_unread_message_count(&self, room_id: &String) {
+        let members = self.redis_client.get_room_members(room_id).unwrap();
+
+        members.iter().for_each(|user_id| {
+            self.redis_client.incr(user_id, room_id).unwrap();
+        });
+    }
 }
 
 pub struct ChatServerService {
@@ -100,8 +111,11 @@ impl ChatServerService {
         let shared = Arc::new(shared);
 
         let shared_clone = shared.clone();
+
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
+                let room_id = &(msg.room_id);
+                shared_clone.incr_unread_message_count(room_id).await;
                 shared_clone.broadcast(&msg).await;
             }
         });
