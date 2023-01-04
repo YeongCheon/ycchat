@@ -198,19 +198,13 @@ impl ChatServerService {
         let parent = request.parent;
         let room_id = self.get_room_id(&parent);
 
-        let message_ids = self
-            .shared
-            .redis_client
-            .get_latest_room_message_list(&room_id)
-            .unwrap();
-
-        let messages_redis_result = self
-            .shared
-            .redis_client
-            .get_chat_room_messages(&room_id, &message_ids)
-            .unwrap();
-
         let messages = {
+            let message_ids = self
+                .shared
+                .redis_client
+                .get_latest_room_message_list(&room_id)
+                .unwrap();
+
             let messages_vec = if !message_ids.is_empty() {
                 self.shared
                     .redis_client
@@ -415,7 +409,8 @@ impl ChatServerService {
 
         self.shared
             .redis_client
-            .add_chat_room_message(&room_id, &message_id, &message);
+            .add_chat_room_message(&room_id, &message_id, &message)
+            .unwrap();
 
         self.shared
             .redis_client
@@ -429,9 +424,8 @@ impl ChatServerService {
 
     fn get_room_id(&self, parent: &str) -> String {
         let parent_slice: Vec<&str> = parent.split('/').collect();
-        let room_id = parent_slice[1].to_string();
 
-        return room_id;
+        parent_slice[1].to_string()
     }
 
     fn convert_date_time(&self, date_time: &DateTime<Utc>) -> Timestamp {

@@ -72,7 +72,10 @@ impl ChatService for MyChatService {
         &self,
         request: tonic::Request<ycchat::ListChatMessagesRequest>,
     ) -> Result<tonic::Response<ycchat::ListChatMessagesResponse>, tonic::Status> {
-        todo!("")
+        return self
+            .chat_service
+            .list_chat_messages(request.into_inner())
+            .map(Response::new);
     }
 
     async fn read_chat_message(
@@ -133,9 +136,9 @@ impl ChatService for MyChatService {
             .unwrap()
             .to_string(); // FIXME
 
-        let test = self.chat_service.conn(&user_id, request.into_inner()).await;
+        let stream = self.chat_service.conn(&user_id, request.into_inner()).await;
 
-        return match test {
+        return match stream {
             Ok(res) => Ok(Response::new(res)),
             Err(_) => Err(Status::internal("internal server error")),
         };
