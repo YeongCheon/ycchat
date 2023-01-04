@@ -13,6 +13,7 @@ mod chat_room_latest_message;
 mod chat_room_members;
 mod chat_room_message;
 mod chat_unread_message_count;
+pub mod page_token;
 
 #[derive(Debug)]
 pub struct RedisClient {

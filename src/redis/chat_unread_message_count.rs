@@ -62,6 +62,6 @@ impl RedisClient {
         user_id: &String,
         room_id: &String,
     ) -> String {
-        format!("ycchat:member:{}:rooms:{}:unreadCount", user_id, room_id)
+        format!("ycchat:members:{}:rooms:{}:unreadCount", user_id, room_id)
     }
 }

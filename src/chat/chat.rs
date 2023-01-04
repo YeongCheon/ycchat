@@ -7,7 +7,7 @@ use tokio_stream::Stream;
 use tonic::{Result, Status};
 use ulid::Ulid;
 
-use crate::redis::{self as yc_redis, RedisClient};
+use crate::redis::{self as yc_redis, page_token::PageToken, RedisClient};
 
 use super::ycchat::{
     chat_message::MessageType, chat_room::ChatRoomType, connect_response::Payload, ChatMessage,
@@ -154,11 +154,22 @@ impl ChatServerService {
             })
             .collect();
 
+        let page = 1; // FIXME
+        let size = 20; // FIXME
+
+        let page_token_id = Ulid::new();
+        let page_token = PageToken::new(page, size);
+
+        self.shared
+            .redis_client
+            .set_page_token(&user_id, page_token_id, page_token)
+            .unwrap();
+
         Ok(ListChatRoomsResponse {
             rooms,
             total_size,
-            next_page_token: None, // FIXME
-            prev_page_token: None, // FIXME
+            next_page_token: Some(page_token_id.to_string()), // FIXME
+            prev_page_token: None,                            // FIXME
         })
     }
 
