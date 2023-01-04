@@ -36,6 +36,6 @@ impl RedisClient {
     }
 
     fn generate_chat_pubsub_key(&self) -> String {
-        "ycchat::pubsub".to_string()
+        "ycchat:pubsub".to_string()
     }
 }

@@ -25,6 +25,6 @@ impl RedisClient {
     }
 
     fn generate_message_readed_key(&self, room_id: &String) -> String {
-        format!("ycchat::room::{}::readed", room_id)
+        format!("ycchat:room:{}:readed", room_id)
     }
 }

@@ -20,6 +20,6 @@ impl RedisClient {
     }
 
     fn generate_latest_message_key(&self, room_id: &String) -> String {
-        format!("ycchat::room::{}::latestMessage", room_id)
+        format!("ycchat:room:{}:latestMessage", room_id)
     }
 }

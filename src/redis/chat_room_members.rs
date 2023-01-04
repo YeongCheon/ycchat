@@ -48,6 +48,6 @@ impl RedisClient {
     }
 
     fn generate_room_members_key(&self, room_id: &String) -> String {
-        format!("ycchat::room::{}::members", room_id)
+        format!("ycchat:room:{}:members", room_id)
     }
 }
