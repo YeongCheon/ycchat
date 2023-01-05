@@ -1,6 +1,7 @@
+use core::fmt;
 use std::str::from_utf8;
 
-use redis::{Commands, ErrorKind, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
+use redis::{Commands, ErrorKind, Expiry, FromRedisValue, RedisError, RedisResult, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
@@ -11,26 +12,60 @@ const EXPIRE: usize = 1800; // seconds
 impl RedisClient {
     pub fn set_page_token(
         &self,
-        owner_id: &String,
+        token_key: TokenKey,
         page_token_id: Ulid,
         page_token: PageToken,
     ) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
-        let key = self.generate_page_token_key(owner_id, page_token_id);
+        let key = self.generate_page_token_key_pattern(token_key, page_token_id);
 
         conn.set_ex(key, page_token, EXPIRE)
     }
 
-    pub fn get_page_token(&self, owner_id: &String, page_token_id: Ulid) -> RedisResult<PageToken> {
+    pub fn get_page_token(
+        &self,
+        token_key: TokenKey,
+        page_token_id: Ulid,
+    ) -> RedisResult<PageToken> {
         let mut conn = self.client.get_connection().unwrap();
-        let key = self.generate_page_token_key(owner_id, page_token_id);
+        let key = self.generate_page_token_key_pattern(token_key, page_token_id);
 
-        conn.get(key)
+        conn.get_ex(key, Expiry::EX(EXPIRE))
     }
 
-    fn generate_page_token_key(&self, owner_id: &String, ulid: Ulid) -> String {
-        format!("ycchat:members:{}:pageToken:{}", owner_id, ulid.to_string())
+    fn generate_page_token_key_pattern(&self, key: TokenKey, ulid: Ulid) -> String {
+        let page_type = key.to_string();
+
+        let owner_id = match key {
+            TokenKey::ChatMessageList { owner_id } => owner_id,
+            TokenKey::ChatRoomList { owner_id } => owner_id,
+            TokenKey::ChatRoomUserList { owner_id } => owner_id,
+        };
+
+        format!(
+            "ycchat:pages:{}:members:{}:token:{}",
+            page_type,
+            owner_id,
+            ulid.to_string()
+        )
+    }
+}
+
+pub enum TokenKey {
+    ChatMessageList { owner_id: String },
+    ChatRoomList { owner_id: String },
+    ChatRoomUserList { owner_id: String },
+}
+
+impl fmt::Display for TokenKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            TokenKey::ChatMessageList { owner_id } => "chatMessageList",
+            TokenKey::ChatRoomList { owner_id } => "chatRoomList",
+            TokenKey::ChatRoomUserList { owner_id } => "chatRoomUserList",
+        };
+        write!(f, "{}", name)
     }
 }
 
