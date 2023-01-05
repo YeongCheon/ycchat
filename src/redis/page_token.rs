@@ -10,37 +10,29 @@ use super::RedisClient;
 const EXPIRE: usize = 1800; // seconds
 
 impl RedisClient {
-    pub fn set_page_token(
-        &self,
-        token_key: TokenKey,
-        page_token_id: Ulid,
-        page_token: PageToken,
-    ) -> RedisResult<()> {
+    pub fn set_page_token(&self, token_key: TokenKey, page_token: PageToken) -> RedisResult<()> {
         let mut conn = self.client.get_connection().unwrap();
 
-        let key = self.generate_page_token_key_pattern(token_key, page_token_id);
+        let key = self.generate_page_token_key_pattern(token_key);
 
         conn.set_ex(key, page_token, EXPIRE)
     }
 
-    pub fn get_page_token(
-        &self,
-        token_key: TokenKey,
-        page_token_id: Ulid,
-    ) -> RedisResult<PageToken> {
+    pub fn get_page_token(&self, token_key: TokenKey) -> RedisResult<PageToken> {
         let mut conn = self.client.get_connection().unwrap();
-        let key = self.generate_page_token_key_pattern(token_key, page_token_id);
+
+        let key = self.generate_page_token_key_pattern(token_key);
 
         conn.get_ex(key, Expiry::EX(EXPIRE))
     }
 
-    fn generate_page_token_key_pattern(&self, key: TokenKey, ulid: Ulid) -> String {
+    fn generate_page_token_key_pattern(&self, key: TokenKey) -> String {
         let page_type = key.to_string();
 
-        let owner_id = match key {
-            TokenKey::ChatMessageList { owner_id } => owner_id,
-            TokenKey::ChatRoomList { owner_id } => owner_id,
-            TokenKey::ChatRoomUserList { owner_id } => owner_id,
+        let (owner_id, ulid) = match key {
+            TokenKey::ChatMessageList { owner_id, ulid } => (owner_id, ulid),
+            TokenKey::ChatRoomList { owner_id, ulid } => (owner_id, ulid),
+            TokenKey::ChatRoomUserList { owner_id, ulid } => (owner_id, ulid),
         };
 
         format!(
@@ -53,17 +45,17 @@ impl RedisClient {
 }
 
 pub enum TokenKey {
-    ChatMessageList { owner_id: String },
-    ChatRoomList { owner_id: String },
-    ChatRoomUserList { owner_id: String },
+    ChatMessageList { owner_id: String, ulid: Ulid },
+    ChatRoomList { owner_id: String, ulid: Ulid },
+    ChatRoomUserList { owner_id: String, ulid: Ulid },
 }
 
 impl fmt::Display for TokenKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
-            TokenKey::ChatMessageList { owner_id } => "chatMessageList",
-            TokenKey::ChatRoomList { owner_id } => "chatRoomList",
-            TokenKey::ChatRoomUserList { owner_id } => "chatRoomUserList",
+            TokenKey::ChatMessageList { owner_id, ulid } => "chatMessageList",
+            TokenKey::ChatRoomList { owner_id, ulid } => "chatRoomList",
+            TokenKey::ChatRoomUserList { owner_id, ulid } => "chatRoomUserList",
         };
         write!(f, "{}", name)
     }
@@ -71,8 +63,8 @@ impl fmt::Display for TokenKey {
 
 #[derive(Deserialize, Serialize)]
 pub struct PageToken {
-    page: u64,
-    size: u64,
+    pub page: u64,
+    pub size: u64,
 }
 
 impl PageToken {

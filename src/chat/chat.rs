@@ -158,24 +158,39 @@ impl ChatServerService {
             })
             .collect();
 
-        let page = 1; // FIXME
-        let size = 20; // FIXME
+        let (page, size) = if let Some(page_token) = request.page_token {
+            let ulid = Ulid::from_string(&page_token).unwrap();
 
-        let page_token_id = Ulid::new();
-        let page_token = PageToken::new(page, size);
+            let token_key = TokenKey::ChatRoomList {
+                owner_id: user_id.clone(),
+                ulid,
+            };
 
-        let token_key = TokenKey::ChatRoomList { owner_id: user_id };
+            let page_token = self.shared.redis_client.get_page_token(token_key).unwrap();
+
+            (page_token.page, page_token.size)
+        } else {
+            (1, 20)
+        };
+
+        let next_page_token = PageToken::new(page, size);
+
+        let next_token_key_id = Ulid::new();
+        let next_token_key = TokenKey::ChatRoomList {
+            owner_id: user_id,
+            ulid: next_token_key_id,
+        };
 
         self.shared
             .redis_client
-            .set_page_token(token_key, page_token_id, page_token)
+            .set_page_token(next_token_key, next_page_token)
             .unwrap();
 
         Ok(ListChatRoomsResponse {
             rooms,
             total_size,
-            next_page_token: Some(page_token_id.to_string()), // FIXME
-            prev_page_token: None,                            // FIXME
+            next_page_token: Some(next_token_key_id.to_string()),
+            prev_page_token: None, // FIXME
         })
     }
 
