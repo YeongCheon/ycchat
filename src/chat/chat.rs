@@ -9,7 +9,7 @@ use ulid::Ulid;
 
 use crate::redis::{
     self as yc_redis,
-    page_token::{PageToken, TokenKey},
+    page_token::{self, PageToken, PageTokenKey},
     RedisClient,
 };
 
@@ -132,6 +132,8 @@ impl ChatServerService {
         user_id: String,
         request: ListChatRoomsRequest,
     ) -> Result<ListChatRoomsResponse, tonic::Status> {
+        let page_token = self.get_page_token(&user_id, &request.page_token);
+
         let room_ids = self.shared.redis_client.get_rooms(&user_id).unwrap();
 
         let total_size = self.shared.redis_client.get_rooms_count(&user_id).unwrap();
@@ -144,7 +146,7 @@ impl ChatServerService {
             vec![]
         };
 
-        let rooms = room_ids
+        let rooms: Vec<ChatRoom> = room_ids
             .iter()
             .enumerate()
             .map(|(idx, room_id)| ChatRoom {
@@ -158,39 +160,35 @@ impl ChatServerService {
             })
             .collect();
 
-        let (page, size) = if let Some(page_token) = request.page_token {
-            let ulid = Ulid::from_string(&page_token).unwrap();
+        let is_have_next = true; // FIXME
 
-            let token_key = TokenKey::ChatRoomList {
-                owner_id: user_id.clone(),
-                ulid,
-            };
+        let (next_page_token_id, prev_page_token_id) = match page_token {
+            Some(page_token) => (page_token.next_page_token, page_token.prev_page_token),
+            None => (None, None),
+        };
 
-            let page_token = self.shared.redis_client.get_page_token(token_key).unwrap();
+        let next_page_token = if is_have_next {
+            let offset_id = rooms.last().map(|chat_room| chat_room.name.clone());
 
-            (page_token.page, page_token.size)
+            let next_page_token = self.generate_next_page_token(
+                next_page_token_id,
+                request.page_token,
+                offset_id,
+                None,
+            );
+
+            self.set_chat_room_page_token(&user_id, next_page_token.clone());
+
+            next_page_token.id
         } else {
-            (1, 20)
+            None
         };
-
-        let next_page_token = PageToken::new(page, size);
-
-        let next_token_key_id = Ulid::new();
-        let next_token_key = TokenKey::ChatRoomList {
-            owner_id: user_id,
-            ulid: next_token_key_id,
-        };
-
-        self.shared
-            .redis_client
-            .set_page_token(next_token_key, next_page_token)
-            .unwrap();
 
         Ok(ListChatRoomsResponse {
             rooms,
             total_size,
-            next_page_token: Some(next_token_key_id.to_string()),
-            prev_page_token: None, // FIXME
+            next_page_token,
+            prev_page_token: prev_page_token_id,
         })
     }
 
@@ -452,6 +450,65 @@ impl ChatServerService {
         Ok(SpeechResponse {
             result: Some(message),
         })
+    }
+
+    fn get_page_token(
+        &self,
+        user_id: &String,
+        page_token_id: &Option<String>,
+    ) -> Option<PageToken> {
+        if let Some(page_token) = page_token_id {
+            let ulid = Ulid::from_string(&page_token).unwrap();
+
+            let page_token_key = PageTokenKey::ChatRoomList {
+                owner_id: user_id.clone(),
+                ulid,
+            };
+
+            let page_token = self
+                .shared
+                .redis_client
+                .get_page_token(page_token_key)
+                .unwrap();
+
+            Some(page_token)
+        } else {
+            None
+        }
+    }
+
+    fn set_chat_room_page_token(&self, owner_id: &str, page_token: PageToken) {
+        let token_key = PageTokenKey::ChatRoomList {
+            owner_id: owner_id.to_owned(),
+            ulid: Ulid::from_string(&page_token.id.clone().unwrap()).unwrap(),
+        };
+
+        self.shared
+            .redis_client
+            .set_page_token(token_key, page_token)
+            .unwrap();
+    }
+
+    fn generate_next_page_token(
+        &self,
+        id: Option<String>,
+        prev_token: Option<String>,
+        offset_id: Option<String>,
+        order_by: Option<String>,
+    ) -> PageToken {
+        let mut next_page_token = PageToken::new(offset_id, order_by);
+
+        next_page_token.set_next_page_token(Ulid::new().to_string());
+
+        if let Some(id) = id {
+            next_page_token.set_id(id);
+        }
+
+        if let Some(prev_token) = prev_token {
+            next_page_token.set_prev_page_token(prev_token);
+        }
+
+        next_page_token
     }
 
     fn get_room_id(&self, parent: &str) -> String {
