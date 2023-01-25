@@ -70,16 +70,18 @@ pub struct PageToken {
     #[serde(skip_serializing)]
     pub id: Option<String>,
     pub offset_id: Option<String>, // ulid
+    pub size: u64,
     pub order_by: Option<String>,
     pub next_page_token: Option<String>,
     pub prev_page_token: Option<String>,
 }
 
 impl PageToken {
-    pub fn new(offset_id: Option<String>, order_by: Option<String>) -> Self {
+    pub fn new(offset_id: Option<String>, size: u64, order_by: Option<String>) -> Self {
         PageToken {
             id: Some(Ulid::new().to_string()),
             offset_id,
+            size,
             order_by,
             next_page_token: None,
             prev_page_token: None,

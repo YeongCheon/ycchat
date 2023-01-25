@@ -1,4 +1,4 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
+use std::{cmp::min_by, collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use prost_types::Timestamp;
@@ -132,16 +132,59 @@ impl ChatServerService {
         user_id: String,
         request: ListChatRoomsRequest,
     ) -> Result<ListChatRoomsResponse, tonic::Status> {
-        let page_token = self.get_page_token(&user_id, &request.page_token);
+        let first_page_token = if request.page_token() == "" {
+            let page_token = PageToken::new(None, u64::from(request.page_size), None);
 
-        let room_ids = self.shared.redis_client.get_rooms(&user_id).unwrap();
+            self.set_chat_room_page_token(&user_id, page_token.clone());
+
+            Some(page_token)
+        } else {
+            None
+        };
+
+        let page_token = self.get_page_token(&user_id, &request.page_token);
+        let page_size = u64::from(request.page_size);
+
+        let (start, end) = if let Some(token) = &page_token {
+            let offset_id = token.offset_id.clone();
+
+            let start = if let Some(offset_id) = offset_id {
+                self.shared
+                    .redis_client
+                    .get_rank(&user_id, &offset_id)
+                    .unwrap()
+                    .map_or(0, |start| start + 1)
+            } else {
+                0
+            };
+
+            let start = start;
+
+            let end = start + token.size;
+
+            (start, end)
+        } else {
+            (0, page_size)
+        };
+
+        let end = 0.max(end - 1);
+
+        let room_ids = self
+            .shared
+            .redis_client
+            .get_rooms(
+                &user_id,
+                isize::try_from(start).unwrap(),
+                isize::try_from(end).unwrap(),
+            )
+            .unwrap();
 
         let total_size = self.shared.redis_client.get_rooms_count(&user_id).unwrap();
         let unread_count_list = if !room_ids.is_empty() {
             self.shared
                 .redis_client
                 .get_unread_message_counts(&user_id, &room_ids)
-                .unwrap()
+                .unwrap_or_default()
         } else {
             vec![]
         };
@@ -160,7 +203,7 @@ impl ChatServerService {
             })
             .collect();
 
-        let is_have_next = true; // FIXME
+        let is_have_next = end < total_size;
 
         let (next_page_token_id, prev_page_token_id) = match page_token {
             Some(page_token) => (page_token.next_page_token, page_token.prev_page_token),
@@ -168,12 +211,23 @@ impl ChatServerService {
         };
 
         let next_page_token = if is_have_next {
-            let offset_id = rooms.last().map(|chat_room| chat_room.name.clone());
+            let offset_id = rooms.last().map(|chat_room| {
+                let name = chat_room.name.clone();
+                let splited_list: Vec<String> =
+                    name.split('/').map(|item| item.to_string()).collect();
+
+                splited_list[1].clone()
+            });
 
             let next_page_token = self.generate_next_page_token(
                 next_page_token_id,
-                request.page_token,
+                if request.page_token.is_none() {
+                    first_page_token.map(|item| item.id.unwrap())
+                } else {
+                    request.page_token
+                },
                 offset_id,
+                page_size,
                 None,
             );
 
@@ -303,6 +357,11 @@ impl ChatServerService {
         self.shared
             .redis_client
             .add_room_member(&room_id, user_id, &create_time)
+            .unwrap();
+
+        self.shared
+            .redis_client
+            .add_room(user_id, &room_id, &create_time)
             .unwrap();
 
         self.shared
@@ -494,9 +553,10 @@ impl ChatServerService {
         id: Option<String>,
         prev_token: Option<String>,
         offset_id: Option<String>,
+        size: u64,
         order_by: Option<String>,
     ) -> PageToken {
-        let mut next_page_token = PageToken::new(offset_id, order_by);
+        let mut next_page_token = PageToken::new(offset_id, size, order_by);
 
         next_page_token.set_next_page_token(Ulid::new().to_string());
 
