@@ -1,4 +1,4 @@
-use std::{cmp::min_by, collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use prost_types::Timestamp;
@@ -9,17 +9,20 @@ use ulid::Ulid;
 
 use crate::redis::{
     self as yc_redis,
-    page_token::{self, PageToken, PageTokenKey},
+    page_token::{PageToken, PageTokenKey},
     RedisClient,
 };
 
-use super::ycchat::{
-    chat_message::MessageType, chat_room::ChatRoomType, connect_response::Payload, ChatMessage,
-    ChatRoom, ChatUser, ConnectRequest, ConnectResponse, EntryChatRoomRequest,
-    EntryChatRoomResponse, LeaveChatRoomRequest, LeaveChatRoomResponse, ListChatMessagesRequest,
-    ListChatMessagesResponse, ListChatRoomUsersRequest, ListChatRoomUsersResponse,
-    ListChatRoomsRequest, ListChatRoomsResponse, ReadChatMessageRequest, ReadChatMessageResponse,
-    SpeechRequest, SpeechResponse,
+use super::{
+    paging::{Pager, PagingManager},
+    ycchat::{
+        chat_message::MessageType, chat_room::ChatRoomType, connect_response::Payload, ChatMessage,
+        ChatRoom, ChatUser, ConnectRequest, ConnectResponse, EntryChatRoomRequest,
+        EntryChatRoomResponse, LeaveChatRoomRequest, LeaveChatRoomResponse,
+        ListChatMessagesRequest, ListChatMessagesResponse, ListChatRoomUsersRequest,
+        ListChatRoomUsersResponse, ListChatRoomsRequest, ListChatRoomsResponse,
+        ReadChatMessageRequest, ReadChatMessageResponse, SpeechRequest, SpeechResponse,
+    },
 };
 
 pub type UserId = String;
@@ -103,6 +106,7 @@ impl Shared {
 
 pub struct ChatServerService {
     shared: Arc<Shared>,
+    chat_room_list_pager: PagingManager<ChatRoom, ChatRoomPager>,
 }
 
 impl ChatServerService {
@@ -115,6 +119,7 @@ impl ChatServerService {
         let shared = Arc::new(shared);
 
         let shared_clone = shared.clone();
+        let shared_clone2 = shared.clone();
 
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
@@ -124,7 +129,10 @@ impl ChatServerService {
             }
         });
 
-        ChatServerService { shared }
+        ChatServerService {
+            shared,
+            chat_room_list_pager: PagingManager::new(ChatRoomPager::new(shared_clone2)),
+        }
     }
 
     pub fn list_chat_rooms(
@@ -132,117 +140,18 @@ impl ChatServerService {
         user_id: String,
         request: ListChatRoomsRequest,
     ) -> Result<ListChatRoomsResponse, tonic::Status> {
-        let first_page_token = if request.page_token() == "" {
-            let page_token = PageToken::new(None, u64::from(request.page_size), None);
+        let page_token_id = request.page_token;
+        let page_size = request.page_size;
 
-            self.set_chat_room_page_token(&user_id, page_token.clone());
-
-            Some(page_token)
-        } else {
-            None
-        };
-
-        let page_token = self.get_page_token(&user_id, &request.page_token);
-        let page_size = u64::from(request.page_size);
-
-        let (start, end) = if let Some(token) = &page_token {
-            let offset_id = token.offset_id.clone();
-
-            let start = if let Some(offset_id) = offset_id {
-                self.shared
-                    .redis_client
-                    .get_rank(&user_id, &offset_id)
-                    .unwrap()
-                    .map_or(0, |start| start + 1)
-            } else {
-                0
-            };
-
-            let start = start;
-
-            let end = start + token.size;
-
-            (start, end)
-        } else {
-            (0, page_size)
-        };
-
-        let end = 0.max(end - 1);
-
-        let room_ids = self
-            .shared
-            .redis_client
-            .get_rooms(
-                &user_id,
-                isize::try_from(start).unwrap(),
-                isize::try_from(end).unwrap(),
-            )
-            .unwrap();
-
-        let total_size = self.shared.redis_client.get_rooms_count(&user_id).unwrap();
-        let unread_count_list = if !room_ids.is_empty() {
-            self.shared
-                .redis_client
-                .get_unread_message_counts(&user_id, &room_ids)
-                .unwrap_or_default()
-        } else {
-            vec![]
-        };
-
-        let rooms: Vec<ChatRoom> = room_ids
-            .iter()
-            .enumerate()
-            .map(|(idx, room_id)| ChatRoom {
-                name: format!("rooms/{}", room_id),
-                chat_room_type: ChatRoomType::Public as i32,
-                unread_message_count: if unread_count_list.is_empty() {
-                    0
-                } else {
-                    unread_count_list[idx].unwrap_or(0) as u64
-                },
-            })
-            .collect();
-
-        let is_have_next = end < total_size;
-
-        let (next_page_token_id, prev_page_token_id) = match page_token {
-            Some(page_token) => (page_token.next_page_token, page_token.prev_page_token),
-            None => (None, None),
-        };
-
-        let next_page_token = if is_have_next {
-            let offset_id = rooms.last().map(|chat_room| {
-                let name = chat_room.name.clone();
-                let splited_list: Vec<String> =
-                    name.split('/').map(|item| item.to_string()).collect();
-
-                splited_list[1].clone()
-            });
-
-            let next_page_token = self.generate_next_page_token(
-                next_page_token_id,
-                if request.page_token.is_none() {
-                    first_page_token.map(|item| item.id.unwrap())
-                } else {
-                    request.page_token
-                },
-                offset_id,
-                page_size,
-                None,
-            );
-
-            self.set_chat_room_page_token(&user_id, next_page_token.clone());
-
-            next_page_token.id
-        } else {
-            None
-        };
+        let paging_result =
+            self.chat_room_list_pager
+                .paging(user_id, page_token_id, u64::from(page_size));
 
         Ok(ListChatRoomsResponse {
-            rooms,
-            total_size,
-            next_page_token,
-            prev_page_token: prev_page_token_id,
+            rooms: paging_result.list,
+            total_size: paging_result.total_size,
+            next_page_token: paging_result.next_page_token,
+            prev_page_token: paging_result.prev_page_token,
         })
     }
 
@@ -511,66 +420,6 @@ impl ChatServerService {
         })
     }
 
-    fn get_page_token(
-        &self,
-        user_id: &String,
-        page_token_id: &Option<String>,
-    ) -> Option<PageToken> {
-        if let Some(page_token) = page_token_id {
-            let ulid = Ulid::from_string(&page_token).unwrap();
-
-            let page_token_key = PageTokenKey::ChatRoomList {
-                owner_id: user_id.clone(),
-                ulid,
-            };
-
-            let page_token = self
-                .shared
-                .redis_client
-                .get_page_token(page_token_key)
-                .unwrap();
-
-            Some(page_token)
-        } else {
-            None
-        }
-    }
-
-    fn set_chat_room_page_token(&self, owner_id: &str, page_token: PageToken) {
-        let token_key = PageTokenKey::ChatRoomList {
-            owner_id: owner_id.to_owned(),
-            ulid: Ulid::from_string(&page_token.id.clone().unwrap()).unwrap(),
-        };
-
-        self.shared
-            .redis_client
-            .set_page_token(token_key, page_token)
-            .unwrap();
-    }
-
-    fn generate_next_page_token(
-        &self,
-        id: Option<String>,
-        prev_token: Option<String>,
-        offset_id: Option<String>,
-        size: u64,
-        order_by: Option<String>,
-    ) -> PageToken {
-        let mut next_page_token = PageToken::new(offset_id, size, order_by);
-
-        next_page_token.set_next_page_token(Ulid::new().to_string());
-
-        if let Some(id) = id {
-            next_page_token.set_id(id);
-        }
-
-        if let Some(prev_token) = prev_token {
-            next_page_token.set_prev_page_token(prev_token);
-        }
-
-        next_page_token
-    }
-
     fn get_room_id(&self, parent: &str) -> String {
         let parent_slice: Vec<&str> = parent.split('/').collect();
 
@@ -590,5 +439,115 @@ impl ChatServerService {
             Timestamp::date_time_nanos(year, month, day, hour, minute, second, nanos)
         }
         .unwrap()
+    }
+}
+
+struct ChatRoomPager {
+    shared: Arc<Shared>,
+}
+
+impl ChatRoomPager {
+    pub fn new(shared: Arc<Shared>) -> Self {
+        ChatRoomPager { shared }
+    }
+
+    fn set_chat_room_page_token(&self, token_key: PageTokenKey, page_token: PageToken) {
+        self.shared
+            .redis_client
+            .set_page_token(token_key, page_token)
+            .unwrap();
+    }
+}
+
+impl Pager<ChatRoom> for ChatRoomPager {
+    fn get_total_size(&self, user_id: &String) -> u64 {
+        self.shared.redis_client.get_rooms_count(user_id).unwrap()
+    }
+
+    fn get_list(&self, user_id: &String, start: isize, end: isize) -> Vec<ChatRoom> {
+        let room_ids = self
+            .shared
+            .redis_client
+            .get_rooms(user_id, start, end)
+            .unwrap();
+        let unread_count_list = if !room_ids.is_empty() {
+            self.shared
+                .redis_client
+                .get_unread_message_counts(user_id, &room_ids)
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        let rooms: Vec<ChatRoom> = room_ids
+            .iter()
+            .enumerate()
+            .map(|(idx, room_id)| ChatRoom {
+                name: format!("rooms/{}", room_id),
+                chat_room_type: ChatRoomType::Public as i32,
+                unread_message_count: if unread_count_list.is_empty() {
+                    0
+                } else {
+                    unread_count_list[idx].unwrap_or(0) as u64
+                },
+            })
+            .collect();
+
+        rooms
+    }
+
+    fn get_offset_id(&self, item: &Option<&ChatRoom>) -> Option<String> {
+        item.map(|chat_room| {
+            let name = chat_room.name.clone();
+            let splited_list: Vec<String> = name.split('/').map(|item| item.to_string()).collect();
+
+            splited_list[1].clone()
+        })
+    }
+
+    fn get_start_index(&self, user_id: &String, offset_id: &Option<String>) -> isize {
+        let start = if let Some(offset_id) = offset_id {
+            self.shared
+                .redis_client
+                .get_rank(user_id, offset_id)
+                .unwrap()
+                .map_or(0, |start| start + 1)
+        } else {
+            0
+        };
+
+        isize::try_from(start).unwrap_or(0)
+    }
+
+    fn set_page_token(&self, page_token_key: PageTokenKey, page_token: &PageToken) {
+        self.set_chat_room_page_token(page_token_key, page_token.clone());
+    }
+
+    fn get_page_token(&self, page_token_key: PageTokenKey) -> Option<PageToken> {
+        let page_token = self
+            .shared
+            .redis_client
+            .get_page_token(page_token_key)
+            .unwrap();
+
+        Some(page_token)
+    }
+
+    fn generate_new_page_token_key(&self, user_id: &str) -> PageTokenKey {
+        let ulid = Ulid::new();
+
+        PageTokenKey::ChatRoomList {
+            owner_id: user_id.to_string(),
+            ulid,
+        }
+    }
+
+    fn generate_page_token_key(&self, user_id: &str, id: &str) -> PageTokenKey {
+        let ulid = Ulid::from_string(id).unwrap();
+
+        PageTokenKey::ChatRoomList {
+            owner_id: user_id.to_string(),
+            ulid,
+        }
     }
 }

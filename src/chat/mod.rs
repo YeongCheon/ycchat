@@ -18,6 +18,7 @@ use self::{
 
 mod chat;
 mod interceptor;
+mod paging;
 
 pub mod ycchat {
     tonic::include_proto!("ycchat");
