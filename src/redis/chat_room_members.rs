@@ -23,12 +23,25 @@ impl RedisClient {
         conn.zrem(key, user_id)
     }
 
-    pub fn get_room_members(&self, room_id: &String) -> RedisResult<Vec<String>> {
+    pub fn get_room_members_all(&self, room_id: &String) -> RedisResult<Vec<String>> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_room_members_key(room_id);
 
         conn.zrange(key, 0, -1)
+    }
+
+    pub fn get_room_members(
+        &self,
+        room_id: &String,
+        start: isize,
+        end: isize,
+    ) -> RedisResult<Vec<String>> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_room_members_key(room_id);
+
+        conn.zrange(key, start, end)
     }
 
     pub fn get_room_member_score(&self, room_id: &String, user_id: &String) -> RedisResult<i64> {
@@ -45,6 +58,14 @@ impl RedisClient {
         let key = self.generate_room_members_key(room_id);
 
         conn.zcount(key, 0, -1)
+    }
+
+    pub fn get_room_members_rank(&self, room_id: &String) -> RedisResult<Option<u64>> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_room_members_key(room_id);
+
+        conn.zrank(key, room_id)
     }
 
     fn generate_room_members_key(&self, room_id: &String) -> String {

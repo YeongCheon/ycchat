@@ -45,7 +45,7 @@ impl RedisClient {
         conn.zrange(key, start, end)
     }
 
-    pub fn get_rank(&self, user_id: &String, room_id: &String) -> RedisResult<Option<u64>> {
+    pub fn get_rooms_rank(&self, user_id: &String, room_id: &String) -> RedisResult<Option<u64>> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_member_room_key(user_id);

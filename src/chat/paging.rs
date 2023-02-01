@@ -32,13 +32,13 @@ where
 
     pub fn paging(
         &self,
-        user_id: String,
+        id: String,
         page_token_id: Option<String>,
         page_size: u64,
     ) -> PagingResult<ITEM> {
         let page_token_key = page_token_id
             .as_ref()
-            .map(|page_token| self.pager.generate_page_token_key(&user_id, page_token));
+            .map(|page_token| self.pager.generate_page_token_key(&id, page_token));
 
         let page_token = if let Some(page_token_key) = page_token_key {
             self.pager.get_page_token(page_token_key)
@@ -49,7 +49,7 @@ where
         let (start, end) = if let Some(token) = &page_token {
             let offset_id = token.offset_id.clone();
 
-            let start = self.pager.get_start_index(&user_id, &offset_id);
+            let start = self.pager.get_start_index(&id, &offset_id);
 
             let start = start;
 
@@ -62,9 +62,9 @@ where
 
         let end = 0.max(end - 1);
 
-        let list = self.pager.get_list(&user_id, start, end);
+        let list = self.pager.get_list(&id, start, end);
 
-        let total_size = self.pager.get_total_size(&user_id);
+        let total_size = self.pager.get_total_size(&id);
 
         let is_have_next = u64::try_from(end).unwrap() < total_size;
 
@@ -82,7 +82,7 @@ where
 
                 let page_token_key = self
                     .pager
-                    .generate_page_token_key(&user_id, &page_token.id.clone().unwrap());
+                    .generate_page_token_key(&id, &page_token.id.clone().unwrap());
 
                 self.pager.set_page_token(page_token_key, &page_token);
 
@@ -108,9 +108,7 @@ where
             );
 
             if let Some(next_page_token_id) = &next_page_token.id {
-                let page_token_key = self
-                    .pager
-                    .generate_page_token_key(&user_id, next_page_token_id);
+                let page_token_key = self.pager.generate_page_token_key(&id, next_page_token_id);
 
                 self.pager.set_page_token(page_token_key, &next_page_token);
             }

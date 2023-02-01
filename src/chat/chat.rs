@@ -70,7 +70,7 @@ impl Shared {
         let parent_slice: Vec<&str> = parent.split('/').collect();
         let room_id = parent_slice[1].to_string();
 
-        let room_members = self.redis_client.get_room_members(&room_id).unwrap();
+        let room_members = self.redis_client.get_room_members_all(&room_id).unwrap();
 
         let read_guard = self.senders.read().await;
 
@@ -96,7 +96,7 @@ impl Shared {
     }
 
     pub async fn incr_unread_message_count(&self, room_id: &String) {
-        let members = self.redis_client.get_room_members(room_id).unwrap();
+        let members = self.redis_client.get_room_members_all(room_id).unwrap();
 
         members.iter().for_each(|user_id| {
             self.redis_client.incr(user_id, room_id).unwrap();
@@ -107,6 +107,7 @@ impl Shared {
 pub struct ChatServerService {
     shared: Arc<Shared>,
     chat_room_list_pager: PagingManager<ChatRoom, ChatRoomPager>,
+    chat_room_member_list_pager: PagingManager<ChatUser, ChatRoomPager>,
 }
 
 impl ChatServerService {
@@ -120,6 +121,7 @@ impl ChatServerService {
 
         let shared_clone = shared.clone();
         let shared_clone2 = shared.clone();
+        let shared_clone3 = shared.clone();
 
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
@@ -132,6 +134,7 @@ impl ChatServerService {
         ChatServerService {
             shared,
             chat_room_list_pager: PagingManager::new(ChatRoomPager::new(shared_clone2)),
+            chat_room_member_list_pager: PagingManager::new(ChatRoomPager::new(shared_clone3)),
         }
     }
 
@@ -162,25 +165,18 @@ impl ChatServerService {
         let parent = request.parent;
         let room_id = self.get_room_id(&parent);
 
-        let room_members = self.shared.redis_client.get_room_members(&room_id).unwrap();
-        let total_size = self
-            .shared
-            .redis_client
-            .get_room_members_count(&room_id)
-            .unwrap();
+        let page_token_id = request.page_token;
+        let page_size = request.page_size;
 
-        let users = room_members
-            .iter()
-            .map(|room_member| ChatUser {
-                name: format!("users/{}", room_member),
-            })
-            .collect();
+        let paging_result =
+            self.chat_room_member_list_pager
+                .paging(room_id, page_token_id, u64::from(page_size));
 
         Ok(ListChatRoomUsersResponse {
-            users,
-            total_size,
-            next_page_token: None,
-            prev_page_token: None,
+            users: paging_result.list,
+            total_size: paging_result.total_size,
+            next_page_token: paging_result.next_page_token,
+            prev_page_token: paging_result.prev_page_token,
         })
     }
 
@@ -451,12 +447,7 @@ impl ChatRoomPager {
         ChatRoomPager { shared }
     }
 
-    fn set_chat_room_page_token(&self, token_key: PageTokenKey, page_token: PageToken) {
-        self.shared
-            .redis_client
-            .set_page_token(token_key, page_token)
-            .unwrap();
-    }
+    fn set_chat_room_page_token(&self, token_key: PageTokenKey, page_token: PageToken) {}
 }
 
 impl Pager<ChatRoom> for ChatRoomPager {
@@ -509,7 +500,7 @@ impl Pager<ChatRoom> for ChatRoomPager {
         let start = if let Some(offset_id) = offset_id {
             self.shared
                 .redis_client
-                .get_rank(user_id, offset_id)
+                .get_rooms_rank(user_id, offset_id)
                 .unwrap()
                 .map_or(0, |start| start + 1)
         } else {
@@ -520,7 +511,10 @@ impl Pager<ChatRoom> for ChatRoomPager {
     }
 
     fn set_page_token(&self, page_token_key: PageTokenKey, page_token: &PageToken) {
-        self.set_chat_room_page_token(page_token_key, page_token.clone());
+        self.shared
+            .redis_client
+            .set_page_token(page_token_key, page_token.clone())
+            .unwrap();
     }
 
     fn get_page_token(&self, page_token_key: PageTokenKey) -> Option<PageToken> {
@@ -546,6 +540,87 @@ impl Pager<ChatRoom> for ChatRoomPager {
         let ulid = Ulid::from_string(id).unwrap();
 
         PageTokenKey::ChatRoomList {
+            owner_id: user_id.to_string(),
+            ulid,
+        }
+    }
+}
+
+impl Pager<ChatUser> for ChatRoomPager {
+    fn get_total_size(&self, id: &String) -> u64 {
+        self.shared.redis_client.get_room_members_count(id).unwrap()
+    }
+
+    fn get_list(&self, room_id: &String, start: isize, end: isize) -> Vec<ChatUser> {
+        let room_members = self
+            .shared
+            .redis_client
+            .get_room_members(&room_id, start, end)
+            .unwrap();
+
+        let users = room_members
+            .iter()
+            .map(|room_member| ChatUser {
+                name: format!("users/{}", room_member),
+            })
+            .collect();
+
+        users
+    }
+
+    fn get_offset_id(&self, item: &Option<&ChatUser>) -> Option<String> {
+        item.map(|chat_user| {
+            let name = chat_user.name.clone();
+            let splited_list: Vec<String> = name.split('/').map(|item| item.to_string()).collect();
+
+            splited_list[1].clone()
+        })
+    }
+
+    fn get_start_index(&self, user_id: &String, offset_id: &Option<String>) -> isize {
+        let start = if let Some(offset_id) = offset_id {
+            self.shared
+                .redis_client
+                .get_room_members_rank(offset_id)
+                .unwrap()
+                .map_or(0, |start| start + 1)
+        } else {
+            0
+        };
+
+        isize::try_from(start).unwrap_or(0)
+    }
+
+    fn set_page_token(&self, page_token_key: PageTokenKey, page_token: &PageToken) {
+        self.shared
+            .redis_client
+            .set_page_token(page_token_key, page_token.clone())
+            .unwrap();
+    }
+
+    fn get_page_token(&self, page_token_key: PageTokenKey) -> Option<PageToken> {
+        let page_token = self
+            .shared
+            .redis_client
+            .get_page_token(page_token_key)
+            .unwrap();
+
+        Some(page_token)
+    }
+
+    fn generate_new_page_token_key(&self, user_id: &str) -> PageTokenKey {
+        let ulid = Ulid::new();
+
+        PageTokenKey::ChatRoomUserList {
+            owner_id: user_id.to_string(),
+            ulid,
+        }
+    }
+
+    fn generate_page_token_key(&self, user_id: &str, id: &str) -> PageTokenKey {
+        let ulid = Ulid::from_string(id).unwrap();
+
+        PageTokenKey::ChatRoomUserList {
             owner_id: user_id.to_string(),
             ulid,
         }
