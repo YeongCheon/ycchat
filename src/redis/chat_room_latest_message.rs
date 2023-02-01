@@ -16,12 +16,25 @@ impl RedisClient {
         conn.zadd(key, message_id, created_at)
     }
 
-    pub fn get_latest_room_message_list(&self, room_id: &String) -> RedisResult<Vec<String>> {
+    pub fn get_latest_room_message_list_all(&self, room_id: &String) -> RedisResult<Vec<String>> {
         let mut conn = self.client.get_connection().unwrap();
 
         let key = self.generate_latest_chat_room_messages_key(room_id);
 
         conn.zrange(key, 0, -1)
+    }
+
+    pub fn get_latest_room_message_list(
+        &self,
+        room_id: &String,
+        start: isize,
+        end: isize,
+    ) -> RedisResult<Vec<String>> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_latest_chat_room_messages_key(room_id);
+
+        conn.zrange(key, start, end)
     }
 
     pub fn get_latest_room_message_count(&self, room_id: &String) -> RedisResult<u64> {
@@ -30,6 +43,18 @@ impl RedisClient {
         let key = self.generate_latest_chat_room_messages_key(room_id);
 
         conn.zcount(key, 0, -1)
+    }
+
+    pub fn get_latest_room_message_rank(
+        &self,
+        room_id: &String,
+        message_id: &String,
+    ) -> RedisResult<Option<u64>> {
+        let mut conn = self.client.get_connection().unwrap();
+
+        let key = self.generate_latest_chat_room_messages_key(room_id);
+
+        conn.zrank(key, room_id)
     }
 
     fn generate_latest_chat_room_messages_key(&self, room_id: &String) -> String {

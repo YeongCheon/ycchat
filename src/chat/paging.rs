@@ -151,13 +151,13 @@ where
 }
 
 pub trait Pager<ITEM> {
-    fn get_total_size(&self, user_id: &String) -> u64;
-    fn get_list(&self, user_id: &String, start: isize, end: isize) -> Vec<ITEM>;
+    fn get_total_size(&self, parent_id: &String) -> u64;
+    fn get_list(&self, parent_id: &String, start: isize, end: isize) -> Vec<ITEM>;
     fn get_offset_id(&self, item: &Option<&ITEM>) -> Option<String>;
-    fn get_start_index(&self, user_id: &String, offset_id: &Option<String>) -> isize;
+    fn get_start_index(&self, parent_id: &String, offset_id: &Option<String>) -> isize;
 
     fn set_page_token(&self, page_token_key: PageTokenKey, page_token: &PageToken);
     fn get_page_token(&self, page_token_key: PageTokenKey) -> Option<PageToken>;
     fn generate_new_page_token_key(&self, user_id: &str) -> PageTokenKey;
-    fn generate_page_token_key(&self, user_id: &str, id: &str) -> PageTokenKey;
+    fn generate_page_token_key(&self, id: &str, page_token_id: &str) -> PageTokenKey;
 }
