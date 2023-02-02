@@ -18,8 +18,6 @@ impl ChatRoomPager {
     pub fn new(shared: Arc<Shared>) -> Self {
         ChatRoomPager { shared }
     }
-
-    fn set_chat_room_page_token(&self, token_key: PageTokenKey, page_token: PageToken) {}
 }
 
 impl Pager<ChatRoom> for ChatRoomPager {
