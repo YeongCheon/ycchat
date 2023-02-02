@@ -1,30 +1,26 @@
-use prost_types::Timestamp;
-use std::{collections::HashMap, pin::Pin, sync::Arc, time::SystemTime};
-use tokio::sync::{mpsc, RwLock};
+use std::pin::Pin;
 use tokio_stream::Stream;
 use tonic::{codegen::InterceptedService, Request, Response, Status};
-use ulid::Ulid;
 use ycchat::chat_service_server::ChatService;
 
 use self::{
     chat::ChatServerService,
     ycchat::{
-        chat_message::MessageType, chat_service_server::ChatServiceServer,
-        connect_response::Payload, ChatMessage, ChatRoom, ChatUser, ConnectResponse,
-        ListChatRoomUsersRequest, ListChatRoomUsersResponse, ListChatRoomsRequest,
-        ListChatRoomsResponse, SpeechResponse,
+        chat_service_server::ChatServiceServer, ConnectResponse, ListChatRoomUsersRequest,
+        ListChatRoomUsersResponse, ListChatRoomsRequest, ListChatRoomsResponse,
     },
 };
 
 mod chat;
+mod chat_message_pager;
+mod chat_room_pager;
+mod chat_room_user_pager;
 mod interceptor;
 mod paging;
 
 pub mod ycchat {
     tonic::include_proto!("ycchat");
 }
-
-use crate::redis::{self as yc_redis, RedisClient};
 
 const METADATA_AUTH_KEY: &str = "authorization";
 
