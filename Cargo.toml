@@ -23,7 +23,7 @@ serde_json = "1.0.91"
 syn = "1.0.107"
 tokio = { version = "1.21.2", features= ["full"] }
 tokio-stream = "0.1.11"
-tonic = "0.8.2"
+tonic = "0.8.3"
 ulid = "1.0.0"
 
 [build-dependencies]

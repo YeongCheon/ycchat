@@ -1,6 +1,9 @@
 use std::io::stdin;
 use tokio_stream::StreamExt;
-use ycchat::{chat_service_client::ChatServiceClient, ConnectRequest, SpeechRequest};
+use tonic::{metadata::MetadataValue, transport::Channel, Request};
+use ycchat::{
+    chat_service_client::ChatServiceClient, ConnectRequest, EntryChatRoomRequest, SpeechRequest,
+};
 
 pub mod ycchat {
     tonic::include_proto!("ycchat");
@@ -8,7 +11,17 @@ pub mod ycchat {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = ChatServiceClient::connect("http://127.0.0.1:50051").await?;
+    let channel = Channel::from_static("http://127.0.0.1:50051")
+        .connect()
+        .await?;
+
+    let token: MetadataValue<_> = "Bearer some-auth-token".parse()?;
+
+    let mut client = ChatServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
+        req.metadata_mut().insert("authorization", token.clone());
+        Ok(req)
+    });
+
     let mut receiver = client.clone();
 
     tokio::spawn(async move {
@@ -22,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ycchat::connect_response::Payload::ConnectSuccess(conn_response) => {
                         println!("Connect Complete: {}", conn_response.result)
                     }
-                    ycchat::connect_response::Payload::ReceiveMessage(msg) => {
+                    ycchat::connect_response::Payload::ChatMessage(msg) => {
                         println!("{}: {}", msg.owner, msg.message);
                     }
                 }
@@ -30,14 +43,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    let room_id = {
+        println!("insert room number");
+        let mut buff = String::new();
+
+        stdin()
+            .read_line(&mut buff)
+            .expect("Reading from stdin failed!");
+
+        client
+            .entry_chat_room(EntryChatRoomRequest {
+                parent: format!("rooms/{buff}"),
+            })
+            .await?;
+
+        buff
+    };
+
     loop {
         let mut buff = String::new();
 
         stdin()
             .read_line(&mut buff)
-            .expect("REading from stdin failed!");
+            .expect("Reading from stdin failed!");
         let request = tonic::Request::new(SpeechRequest {
-            room_id: 1.to_string(),
+            parent: format!("rooms/{room_id}"),
             message: buff,
         });
 
