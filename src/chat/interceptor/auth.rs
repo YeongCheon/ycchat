@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tonic::{metadata::AsciiMetadataValue, Request, Status};
 
+use crate::util::variable::JWT_SECRET;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,
@@ -14,6 +16,8 @@ pub fn check_auth(mut req: Request<()>) -> Result<Request<()>, Status> {
 
     let key = DecodingKey::from_secret(secret.as_ref());
     let validation = Validation::new(jsonwebtoken::Algorithm::HS256);
+
+    // JWT_SECRET
 
     if let Some(t) = req.metadata().get("authorization") {
         let b = t.as_bytes().to_vec();

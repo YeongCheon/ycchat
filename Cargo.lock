@@ -1585,6 +1585,7 @@ dependencies = [
  "http",
  "hyper",
  "jsonwebtoken",
+ "lazy_static",
  "prost",
  "prost-types",
  "redis",

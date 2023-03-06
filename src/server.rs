@@ -2,6 +2,10 @@ use tonic::transport::Server;
 
 mod chat;
 mod redis;
+mod util;
+
+#[macro_use]
+extern crate lazy_static;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
