@@ -15,7 +15,6 @@ mod chat;
 mod chat_message_pager;
 mod chat_room_pager;
 mod chat_room_user_pager;
-mod interceptor;
 mod paging;
 
 pub mod ycchat {
