@@ -1,2 +1,2 @@
-pub mod postgres;
+pub mod surreal;
 pub mod traits;

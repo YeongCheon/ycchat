@@ -1,5 +1,3 @@
-use db::postgres::user::UserRepositoryImpl;
-use hyper::service::service_fn;
 use services::{server::ycchat_server::server_server, user::ycchat_user::user_server};
 use tonic::transport::Server;
 
@@ -8,7 +6,6 @@ mod db;
 mod interceptor;
 mod models;
 mod services;
-// mod redis;
 mod util;
 
 #[macro_use]
@@ -22,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // // let chat_service_server = chat::get_chat_service_server();
     let user_server = user_server::UserServer::with_interceptor(
-        services::user::UserService::new(),
+        services::user::UserService::new().await,
         interceptor::auth::check_auth,
     );
 

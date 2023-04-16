@@ -1,11 +1,12 @@
 use tonic::async_trait;
 
-use crate::models::user::{User, UserId};
+use crate::models::user::{DbUser, UserId};
 
-pub trait UserRepository {
-    fn get_user(id: &UserId) -> Result<User, String>;
-    fn add_user(user: &User) -> Result<String, String>;
-    fn update_user(user: &User) -> Result<String, String>;
-    fn delete_user(id: &UserId) -> Result<u8, String>;
-    fn get_users() -> Result<Vec<User>, String>;
+#[async_trait]
+pub trait UserRepository: Sync + Send {
+    async fn get_user(&self, id: &UserId) -> Result<DbUser, String>;
+    async fn add_user(&self, user: &DbUser) -> Result<DbUser, String>;
+    async fn update_user(&self, user: &DbUser) -> Result<DbUser, String>;
+    async fn delete_user(&self, id: &UserId) -> Result<u8, String>;
+    async fn get_users(&self) -> Result<Vec<DbUser>, String>;
 }

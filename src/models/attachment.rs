@@ -1,15 +1,14 @@
-use std::iter::Map;
-
-use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 pub type AttachmentId = ulid::Ulid;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Attachment {
-    pub id: AttachmentId,
+    pub id: uuid::Uuid,
     pub url: String,
     pub filename: String,
     pub mime_type: String,
-    pub size: u128,
-    pub metadata: Map<String, String>,
-    pub create_time: DateTime<Utc>,
+    pub file_size: i64,
+    // pub metadata: Option<Map<String, String>>,
+    pub create_time: chrono::NaiveDateTime,
 }
