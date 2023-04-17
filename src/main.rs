@@ -1,3 +1,4 @@
+use db::surreal::user::UserRepositoryImpl;
 use services::{server::ycchat_server::server_server, user::ycchat_user::user_server};
 use tonic::transport::Server;
 
@@ -17,9 +18,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "0.0.0.0:50051".parse().unwrap();
 
+    let user_repository = UserRepositoryImpl::new().await;
+
     // // let chat_service_server = chat::get_chat_service_server();
     let user_server = user_server::UserServer::with_interceptor(
-        services::user::UserService::new().await,
+        services::user::UserService::new(user_repository).await,
         interceptor::auth::check_auth,
     );
 

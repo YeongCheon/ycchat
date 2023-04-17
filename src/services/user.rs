@@ -1,9 +1,6 @@
 use tonic::{Request, Response, Status};
 
-use crate::{
-    db::{surreal::user::UserRepositoryImpl, traits::user::UserRepository},
-    models::user::UserId,
-};
+use crate::{db::traits::user::UserRepository, models::user::UserId};
 
 use self::ycchat_user::{
     CreateUserRequest, DeleteUserRequest, GetUserRequest, GetUserResponse, ListUsersRequest,
@@ -21,20 +18,27 @@ pub mod ycchat_user {
     tonic::include_proto!("ycchat.user");
 }
 
-pub struct UserService {
-    user_repository: UserRepositoryImpl,
+pub struct UserService<U>
+where
+    U: UserRepository,
+{
+    user_repository: U,
 }
 
-impl UserService {
-    pub async fn new() -> Self {
-        UserService {
-            user_repository: UserRepositoryImpl::new().await,
-        }
+impl<U> UserService<U>
+where
+    U: UserRepository,
+{
+    pub async fn new(user_repository: U) -> Self {
+        UserService { user_repository }
     }
 }
 
 #[tonic::async_trait]
-impl UserServer for UserService {
+impl<U> UserServer for UserService<U>
+where
+    U: UserRepository + 'static,
+{
     async fn list_users(
         &self,
         request: Request<ListUsersRequest>,
