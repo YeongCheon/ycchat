@@ -2797,6 +2797,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "dotenv",
+ "futures",
  "http",
  "hyper",
  "jsonwebtoken",
@@ -2813,6 +2814,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tonic-web",
+ "tower",
  "ulid",
  "uuid",
 ]
