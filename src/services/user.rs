@@ -1,6 +1,6 @@
 use tonic::{Request, Response, Status};
 
-use crate::{db::traits::user::UserRepository, models::user::UserId};
+use crate::db::traits::user::UserRepository;
 
 use self::ycchat_user::{
     CreateUserRequest, DeleteUserRequest, GetUserRequest, GetUserResponse, ListUsersRequest,
@@ -59,8 +59,7 @@ where
         let req = request.into_inner();
         let name = req.name;
 
-        let id = name.split('/').collect::<Vec<&str>>()[1];
-        let id = UserId::from_string(id).unwrap();
+        let id = name.split('/').collect::<Vec<&str>>()[1].to_string();
 
         let user = self.user_repository.get_user(&id).await.unwrap();
 
@@ -73,10 +72,24 @@ where
         &self,
         request: tonic::Request<CreateUserRequest>,
     ) -> Result<tonic::Response<User>, tonic::Status> {
+        let user_id = request
+            .metadata()
+            .get("user_id")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+
         let req = request.into_inner();
 
         let user = match req.user {
-            Some(user) => DbUser::new(user),
+            Some(user) => {
+                let mut user = DbUser::new(user);
+
+                user.id = user_id;
+
+                user
+            }
             None => return Err(Status::invalid_argument("invalid arguments")),
         };
 
@@ -114,8 +127,7 @@ where
         let req = request.into_inner();
         let name = req.name;
 
-        let id = name.split('/').collect::<Vec<&str>>()[1];
-        let id = UserId::from_string(id).unwrap();
+        let id = name.split('/').collect::<Vec<&str>>()[1].to_string();
 
         self.user_repository.delete_user(&id).await.unwrap();
 

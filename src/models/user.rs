@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::attachment::Attachment;
 
-pub type UserId = ulid::Ulid;
+pub type UserId = String;
 
 use crate::services::user::model::User as UserMessage;
 
@@ -39,7 +39,7 @@ impl DbUser {
 
     pub fn from(message: UserMessage) -> Self {
         DbUser {
-            id: UserId::from_string(message.name.split('/').collect::<Vec<&str>>()[1]).unwrap(),
+            id: message.name.split('/').collect::<Vec<&str>>()[1].to_string(),
             display_name: message.display_name,
             description: message.description,
             avatar: None,
@@ -53,7 +53,7 @@ impl DbUser {
 
     pub fn to_message(self) -> UserMessage {
         UserMessage {
-            name: format!("users/{}", self.id.to_string()),
+            name: format!("users/{}", self.id),
             display_name: self.display_name,
             description: self.description,
             avatar: None, // FIXME
