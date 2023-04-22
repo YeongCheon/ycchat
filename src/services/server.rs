@@ -1,5 +1,10 @@
 use tonic::{Request, Response, Result, Status};
 
+use crate::{
+    db::traits::server::ServerRepository,
+    models::server::{DbServer, ServerId},
+};
+
 use self::ycchat_server::{
     CreateServerRequest, DeleteServerRequest, EnterServerRequest, EnterServerResponse,
     GetServerRequest, GetServerResponse, LeaveServerRequest, ListServersRequest,
@@ -16,49 +21,115 @@ pub mod ycchat_server {
     tonic::include_proto!("ycchat.server");
 }
 
-pub struct ServerService {}
+pub struct ServerService<U>
+where
+    U: ServerRepository,
+{
+    server_repository: U,
+}
 
-impl ServerService {
-    pub fn new() -> Self {
-        ServerService {}
+impl<U> ServerService<U>
+where
+    U: ServerRepository,
+{
+    pub fn new(server_repository: U) -> Self {
+        ServerService { server_repository }
     }
 }
 
 #[tonic::async_trait]
-impl ServerServer for ServerService {
+impl<U> ServerServer for ServerService<U>
+where
+    U: ServerRepository + 'static,
+{
     async fn list_servers(
         &self,
         request: Request<ListServersRequest>,
     ) -> Result<Response<ListServersResponse>, Status> {
-        todo!("not implemented yet.");
+        let list = self.server_repository.get_servers().await.unwrap();
+
+        let servers: Vec<Server> = list.iter().map(|item| item.clone().to_message()).collect();
+
+        let res = ListServersResponse {
+            servers,
+            page: None,
+        };
+
+        Ok(Response::new(res))
     }
 
     async fn get_server(
         &self,
         request: Request<GetServerRequest>,
     ) -> Result<Response<GetServerResponse>, Status> {
-        todo!("not implemented yet.");
+        let req = request.into_inner();
+        let name = req.name;
+
+        let id = ServerId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+
+        let server = self.server_repository.get_server(&id).await.unwrap();
+
+        Ok(Response::new(GetServerResponse {
+            server: Some(server.to_message()),
+            categories: vec![], // FIXME
+            channels: vec![],   // FIXME
+        }))
     }
 
     async fn create_server(
         &self,
         request: Request<CreateServerRequest>,
     ) -> Result<Response<Server>, Status> {
-        todo!("not implemented yet.");
+        let req = request.into_inner();
+
+        let server = match req.server {
+            Some(server) => DbServer::new(server),
+            None => return Err(Status::invalid_argument("invalid arguments")),
+        };
+
+        let server_res = self.server_repository.add_server(&server).await.unwrap();
+
+        Ok(Response::new(server_res.to_message()))
     }
 
     async fn update_server(
         &self,
         request: Request<UpdateServerRequest>,
     ) -> Result<Response<Server>, Status> {
-        todo!("not implemented yet.");
+        let req = request.into_inner();
+
+        let server = match req.server {
+            Some(server) => DbServer::from(server),
+            None => return Err(Status::invalid_argument("invalid_arguments")),
+        };
+
+        let mut exist_server = self.server_repository.get_server(&server.id).await.unwrap();
+
+        exist_server.display_name = server.display_name;
+        exist_server.description = server.description;
+        exist_server.update_time = chrono::offset::Utc::now();
+
+        let res = self
+            .server_repository
+            .update_server(&exist_server)
+            .await
+            .unwrap();
+
+        Ok(Response::new(res.to_message()))
     }
 
     async fn delete_server(
         &self,
         request: Request<DeleteServerRequest>,
     ) -> Result<Response<()>, Status> {
-        todo!("not implemented yet.");
+        let req = request.into_inner();
+        let name = req.name;
+
+        let id = ServerId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+
+        self.server_repository.delete_server(&id).await.unwrap();
+
+        Ok(Response::new(()))
     }
 
     async fn enter_server(
