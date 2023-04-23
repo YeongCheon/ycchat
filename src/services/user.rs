@@ -2,21 +2,13 @@ use tonic::{Request, Response, Status};
 
 use crate::db::traits::user::UserRepository;
 
-use self::ycchat_user::{
-    CreateUserRequest, DeleteUserRequest, GetUserRequest, GetUserResponse, ListUsersRequest,
-    ListUsersResponse, UpdateUserRequest,
+use super::model::User;
+use super::ycchat_user::user_server::User as UserServer;
+use super::ycchat_user::{
+    CreateUserRequest, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse,
+    UpdateUserRequest,
 };
 use crate::models::user::DbUser;
-use model::User;
-use ycchat_user::user_server::User as UserServer;
-
-pub mod model {
-    tonic::include_proto!("ycchat.model");
-}
-
-pub mod ycchat_user {
-    tonic::include_proto!("ycchat.user");
-}
 
 pub struct UserService<U>
 where
@@ -52,10 +44,7 @@ where
         Ok(Response::new(res))
     }
 
-    async fn get_user(
-        &self,
-        request: Request<GetUserRequest>,
-    ) -> Result<Response<GetUserResponse>, Status> {
+    async fn get_user(&self, request: Request<GetUserRequest>) -> Result<Response<User>, Status> {
         let req = request.into_inner();
         let name = req.name;
 
@@ -63,9 +52,7 @@ where
 
         let user = self.user_repository.get_user(&id).await.unwrap();
 
-        Ok(Response::new(GetUserResponse {
-            user: Some(user.to_message()),
-        }))
+        Ok(Response::new(user.to_message()))
     }
 
     async fn create_user(

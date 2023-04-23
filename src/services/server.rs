@@ -5,21 +5,13 @@ use crate::{
     models::server::{DbServer, ServerId},
 };
 
-use self::ycchat_server::{
+use super::model::Server;
+use super::ycchat_server::server_server::Server as ServerServer;
+use super::ycchat_server::{
     CreateServerRequest, DeleteServerRequest, EnterServerRequest, EnterServerResponse,
-    GetServerRequest, GetServerResponse, LeaveServerRequest, ListServersRequest,
-    ListServersResponse, UpdateServerRequest,
+    GetServerRequest, LeaveServerRequest, ListServersRequest, ListServersResponse,
+    UpdateServerRequest,
 };
-use model::Server;
-use ycchat_server::server_server::Server as ServerServer;
-
-pub mod model {
-    tonic::include_proto!("ycchat.model");
-}
-
-pub mod ycchat_server {
-    tonic::include_proto!("ycchat.server");
-}
 
 pub struct ServerService<U>
 where
@@ -61,7 +53,7 @@ where
     async fn get_server(
         &self,
         request: Request<GetServerRequest>,
-    ) -> Result<Response<GetServerResponse>, Status> {
+    ) -> Result<Response<Server>, Status> {
         let req = request.into_inner();
         let name = req.name;
 
@@ -69,11 +61,7 @@ where
 
         let server = self.server_repository.get_server(&id).await.unwrap();
 
-        Ok(Response::new(GetServerResponse {
-            server: Some(server.to_message()),
-            categories: vec![], // FIXME
-            channels: vec![],   // FIXME
-        }))
+        Ok(Response::new(server.to_message()))
     }
 
     async fn create_server(
