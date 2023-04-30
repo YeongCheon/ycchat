@@ -2,7 +2,7 @@ use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
 
-use crate::services::server::model::Server;
+use crate::services::model::Server;
 
 use super::attachment::Attachment;
 
