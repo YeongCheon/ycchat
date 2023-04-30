@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             //---------------------------------------
             "protobuf/user/user.proto",
             "protobuf/server/server.proto",
-            "protobuf/server/server_member.proto",
+            "protobuf/server/member/server_member.proto",
             "protobuf/category/category.proto",
             "protobuf/channel/channel.proto",
             "protobuf/message/message.proto",

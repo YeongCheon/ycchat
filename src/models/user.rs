@@ -6,7 +6,7 @@ use super::attachment::Attachment;
 
 pub type UserId = String;
 
-use crate::services::user::model::User as UserMessage;
+use crate::services::model::User as UserMessage;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbUser {
