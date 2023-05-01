@@ -1,15 +1,19 @@
-use db::surreal::{
-    server::ServerRepositoryImpl, server_member::ServerMemberRepositoryImpl,
-    user::UserRepositoryImpl,
+use db::{
+    surreal::{
+        auth::AuthRepositoryImpl, server::ServerRepositoryImpl,
+        server_member::ServerMemberRepositoryImpl, user::UserRepositoryImpl,
+    },
+    traits::auth::AuthRepository,
 };
 use services::{
-    ycchat_server::member::server_member_server, ycchat_server::server_server,
-    ycchat_user::user_server,
+    auth::AuthService, ycchat_auth::auth_server, ycchat_server::member::server_member_server,
+    ycchat_server::server_server, ycchat_user::user_server,
 };
 // use services::ycchat_server::member::server_member_server::ServerMember as ServerMemberServer;
 use tonic::transport::Server;
 
 // mod chat;
+mod auth;
 mod db;
 mod interceptor;
 mod models;
@@ -25,9 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "0.0.0.0:50051".parse().unwrap();
 
+    let auth_repository = AuthRepositoryImpl::new().await;
     let user_repository = UserRepositoryImpl::new().await;
     let server_repository = ServerRepositoryImpl::new().await;
     let server_member_repository = ServerMemberRepositoryImpl::new().await;
+
+    let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository));
 
     // // let chat_service_server = chat::get_chat_service_server();
     let user_server = user_server::UserServer::with_interceptor(
@@ -46,6 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     Server::builder()
+        .add_service(auth_server)
         .add_service(user_server)
         .add_service(server_server)
         .add_service(server_member_server)
