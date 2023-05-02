@@ -36,8 +36,9 @@ impl AuthRepository for AuthRepositoryImpl {
     async fn get_by_username(&self, username: &str) -> Result<Option<DbAuth>, String> {
         let mut res = self
             .db
-            .query("SELECT * FROM $table_name WHERE username = '$username'")
-            .bind(("table_name", COLLECTION_NAME))
+            .query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE username = $username"
+            ))
             .bind(("username", username))
             .await
             .unwrap();

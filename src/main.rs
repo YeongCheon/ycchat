@@ -17,6 +17,7 @@ mod auth;
 mod db;
 mod interceptor;
 mod models;
+mod redis;
 mod services;
 mod util;
 

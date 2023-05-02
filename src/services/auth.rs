@@ -4,9 +4,11 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use tonic::{Request, Response, Status};
 use ulid::Ulid;
 
-use crate::auth::jwt::generate_jwt_token;
+use crate::auth::jwt::{decode, generate_access_token, generate_refresh_token};
 use crate::db::traits::auth::AuthRepository;
 use crate::models::auth::DbAuth;
+use crate::models::user::UserId;
+use crate::redis::RedisClient;
 
 use super::ycchat_auth::auth_server::Auth;
 use super::ycchat_auth::{
@@ -18,6 +20,7 @@ pub struct AuthService<U>
 where
     U: AuthRepository,
 {
+    redis_client: RedisClient,
     auth_repository: U,
 }
 
@@ -26,7 +29,23 @@ where
     U: AuthRepository,
 {
     pub fn new(auth_repository: U) -> Self {
-        AuthService { auth_repository }
+        let redis_client = RedisClient::new();
+
+        AuthService {
+            redis_client,
+            auth_repository,
+        }
+    }
+
+    fn get_user_id(&self, refresh_token: &str) -> Result<UserId, Status> {
+        let token_data = match decode(&refresh_token) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(Status::unauthenticated(err.to_string()));
+            }
+        };
+
+        Ok(token_data.claims.aud) // aud is user_id
     }
 }
 
@@ -40,6 +59,16 @@ where
         request: Request<SignUpRequest>,
     ) -> Result<Response<SignUpResponse>, Status> {
         let req = request.into_inner();
+
+        let exist = self
+            .auth_repository
+            .get_by_username(&req.username)
+            .await
+            .unwrap();
+
+        if exist.is_some() {
+            return Err(Status::already_exists("username already exist."));
+        }
 
         let salt = SaltString::generate(&mut OsRng);
 
@@ -58,16 +87,21 @@ where
                 id: user_id.clone(),
                 username: req.username,
                 password: hashed_password,
+                email: None,
+                is_email_verified: false,
             })
             .await
             .unwrap();
 
-        let jwt_token = generate_jwt_token(&user_id).unwrap();
+        let access_token = generate_access_token(&user_id).unwrap();
+
+        let refresh_token = generate_refresh_token(&user_id).unwrap();
+        self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignUpResponse {
             user_id: res.id,
-            access_token: jwt_token,
-            refresh_token: "FIXME".to_string(),
+            access_token,
+            refresh_token,
             expires_in: 3600,
         }))
     }
@@ -100,12 +134,14 @@ where
 
         let user_id = auth.id;
 
-        let jwt_token = generate_jwt_token(&user_id).unwrap();
+        let access_token = generate_access_token(&user_id).unwrap();
+        let refresh_token = generate_refresh_token(&user_id).unwrap();
+        self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignInResponse {
-            user_id: user_id,
-            access_token: jwt_token,
-            refresh_token: "FIXME".to_string(),
+            user_id,
+            access_token,
+            refresh_token,
             expires_in: 3600,
         }))
     }
@@ -114,13 +150,46 @@ where
         &self,
         request: Request<RefreshTokenRequest>,
     ) -> Result<Response<RefreshTokenResponse>, Status> {
-        todo!()
+        let old_refresh_token = request.into_inner().refresh_token;
+        let user_id = self.get_user_id(&old_refresh_token)?;
+
+        let res = self
+            .redis_client
+            .get_refresh_token(&old_refresh_token)
+            .unwrap();
+
+        if res.is_none() {
+            return Err(Status::unauthenticated("invalid argument"));
+        }
+
+        let access_token = generate_access_token(&user_id).unwrap();
+        let new_refresh_token = generate_refresh_token(&user_id).unwrap();
+
+        self.redis_client
+            .delete_refresh_token(&old_refresh_token)
+            .unwrap();
+
+        self.redis_client
+            .set_refresh_token(&new_refresh_token)
+            .unwrap();
+
+        Ok(Response::new(RefreshTokenResponse {
+            access_token,
+            refresh_token: new_refresh_token,
+            expires_in: 3600,
+        }))
     }
 
     async fn revoke_refresh_token(
         &self,
         request: Request<RevokeRefreshTokenRequest>,
     ) -> Result<Response<()>, Status> {
-        todo!()
+        let refresh_token = request.into_inner().refresh_token;
+
+        self.redis_client
+            .delete_refresh_token(&refresh_token)
+            .unwrap();
+
+        Ok(Response::new(()))
     }
 }

@@ -8,4 +8,6 @@ pub struct DbAuth {
     pub id: UserId,
     pub username: String,
     pub password: String,
+    pub email: Option<String>,
+    pub is_email_verified: bool,
 }

@@ -8,7 +8,8 @@ use crate::models::user::UserId;
 
 pub const ALGORITHM: jsonwebtoken::Algorithm = jsonwebtoken::Algorithm::HS256;
 const ISS: &str = "antchat";
-const EXP: u64 = 3600; // 1 hour
+const EXP_ACCESS_TOKEN: u64 = 3600; // 1 hour
+const EXP_REFRESH_TOKEN: u64 = 3600 * 24 * 14; // 14 day
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -19,7 +20,7 @@ pub struct Claims {
     pub exp: u64,
 }
 
-pub fn generate_jwt_token(user_id: &UserId) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn generate_access_token(user_id: &UserId) -> Result<String, jsonwebtoken::errors::Error> {
     let key = EncodingKey::from_secret(JWT_SECRET.as_ref());
 
     let claims = Claims {
@@ -27,7 +28,21 @@ pub fn generate_jwt_token(user_id: &UserId) -> Result<String, jsonwebtoken::erro
         aud: user_id.clone(),
         iss: ISS.to_string(),
         iat: get_current_timestamp(),
-        exp: get_current_timestamp() + EXP,
+        exp: get_current_timestamp() + EXP_ACCESS_TOKEN,
+    };
+
+    encode(&jsonwebtoken::Header::new(ALGORITHM), &claims, &key)
+}
+
+pub fn generate_refresh_token(user_id: &UserId) -> Result<String, jsonwebtoken::errors::Error> {
+    let key = EncodingKey::from_secret(JWT_SECRET.as_ref());
+
+    let claims = Claims {
+        sub: "refresh_token".to_string(),
+        aud: user_id.clone(),
+        iss: ISS.to_string(),
+        iat: get_current_timestamp(),
+        exp: get_current_timestamp() + EXP_REFRESH_TOKEN,
     };
 
     encode(&jsonwebtoken::Header::new(ALGORITHM), &claims, &key)
