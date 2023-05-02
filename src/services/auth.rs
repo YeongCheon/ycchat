@@ -89,6 +89,9 @@ where
                 password: hashed_password,
                 email: None,
                 is_email_verified: false,
+                create_time: chrono::offset::Utc::now(),
+                update_time: None,
+                last_login_time: None,
             })
             .await
             .unwrap();
@@ -119,7 +122,7 @@ where
             Err(err) => return Err(Status::invalid_argument(err)),
         };
 
-        let auth = match auth {
+        let mut auth = match auth {
             Some(auth) => auth,
             None => return Err(Status::invalid_argument("invalid argument")),
         };
@@ -131,6 +134,9 @@ where
         assert!(argon2
             .verify_password(password.as_bytes(), &parsed_hash)
             .is_ok());
+
+        auth.last_login_time = Some(chrono::offset::Utc::now());
+        self.auth_repository.update(&auth).await.unwrap();
 
         let user_id = auth.id;
 
