@@ -38,7 +38,7 @@ where
     }
 
     fn get_user_id(&self, refresh_token: &str) -> Result<UserId, Status> {
-        let token_data = match decode(&refresh_token) {
+        let token_data = match decode(refresh_token) {
             Ok(res) => res,
             Err(err) => {
                 return Err(Status::unauthenticated(err.to_string()));

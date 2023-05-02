@@ -7,6 +7,7 @@ use crate::{
 
 use super::conn;
 
+#[derive(Clone)]
 pub struct AuthRepositoryImpl {
     db: Surreal<Client>,
 }
@@ -21,11 +22,8 @@ const COLLECTION_NAME: &str = "auth";
 
 #[tonic::async_trait]
 impl AuthRepository for AuthRepositoryImpl {
-    async fn get(&self, id: &UserId) -> Result<DbAuth, String> {
-        let res = self
-            .db
-            .select::<Option<DbAuth>>((COLLECTION_NAME, id.to_string()))
-            .await;
+    async fn get(&self, id: &UserId) -> Result<Option<DbAuth>, String> {
+        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
