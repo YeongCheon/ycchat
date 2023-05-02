@@ -6,7 +6,7 @@ use tonic::{Request, Response, Status};
 
 use crate::db::traits::auth::AuthRepository;
 
-use super::ycchat_account::{account_server::Account, UpdatePasswordRequest};
+use super::ycchat_account::{account_server::Account, DeleteAccountRequest, UpdatePasswordRequest};
 
 pub struct AccountService<U>
 where
@@ -71,6 +71,23 @@ where
         exist.password = hashed_new_password;
 
         self.auth_repository.update(&exist).await.unwrap();
+
+        Ok(Response::new(()))
+    }
+
+    async fn delete_account(
+        &self,
+        request: Request<DeleteAccountRequest>,
+    ) -> Result<Response<()>, Status> {
+        let user_id = request
+            .metadata()
+            .get("user_id")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // FIXME
+
+        self.auth_repository.delete(&user_id).await.unwrap();
 
         Ok(Response::new(()))
     }
