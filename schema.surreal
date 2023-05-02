@@ -1,0 +1,32 @@
+///////////////////////////////////////////////////////////////
+/* auth */
+DEFINE TABLE auth SCHEMAFULL;
+
+DEFINE FIELD username ON TABLE auth TYPE string ASSERT $value != NONE;
+DEFINE FIELD password ON TABLE auth TYPE string ASSERT $value != NONE;
+DEFINE FIELD email ON TABLE auth TYPE string;
+DEFINE FIELD is_email_verified ON TABLE auth TYPE bool;
+
+DEFINE INDEX authUsernameIndex ON TABLE auth COLUMNS username UNIQUE;
+DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
+
+///////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////
+/* auth */
+DEFINE TABLE auth SCHEMAFULL;
+
+DEFINE FIELD username ON TABLE auth TYPE string
+  ASSERT $value != NONE AND $value = /[a-z][a-z0-9_]{1,20}/;
+
+DEFINE FIELD password ON TABLE auth TYPE string ASSERT $value != NONE;
+DEFINE FIELD email ON TABLE auth TYPE string ASSERT is::email($value) or $value == NONE;
+DEFINE FIELD is_email_verified ON TABLE auth TYPE bool VALUE $value OR false;
+DEFINE FIELD create_time ON TABLE auth TYPE datetime ASSERT $value != NONE VALUE $value OR time::now();
+DEFINE FIELD update_time ON TABLE auth TYPE datetime;
+DEFINE FIELD last_login_time ON TABLE auth TYPE datetime;
+
+DEFINE INDEX authUsernameIndex ON TABLE auth COLUMNS username UNIQUE;
+DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
+
+///////////////////////////////////////////////////////////////
