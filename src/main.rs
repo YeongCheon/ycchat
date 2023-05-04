@@ -1,14 +1,19 @@
 use db::{
     surreal::{
         auth::AuthRepositoryImpl, server::ServerRepositoryImpl,
-        server_member::ServerMemberRepositoryImpl, user::UserRepositoryImpl,
+        server_category::ServerCategoryRepositoryImpl, server_member::ServerMemberRepositoryImpl,
+        user::UserRepositoryImpl,
     },
     traits::auth::AuthRepository,
 };
 use services::{
-    account::AccountService, auth::AuthService, ycchat_account::account_server,
-    ycchat_auth::auth_server, ycchat_server::member::server_member_server,
-    ycchat_server::server_server, ycchat_user::user_server,
+    account::AccountService,
+    auth::AuthService,
+    ycchat_account::account_server,
+    ycchat_auth::auth_server,
+    ycchat_server::member::server_member_server,
+    ycchat_server::{category::category_server, server_server},
+    ycchat_user::user_server,
 };
 // use services::ycchat_server::member::server_member_server::ServerMember as ServerMemberServer;
 use tonic::transport::Server;
@@ -34,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth_repository = AuthRepositoryImpl::new().await;
     let user_repository = UserRepositoryImpl::new().await;
     let server_repository = ServerRepositoryImpl::new().await;
+    let server_category_repository = ServerCategoryRepositoryImpl::new().await;
     let server_member_repository = ServerMemberRepositoryImpl::new().await;
 
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
@@ -50,7 +56,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let server_server = server_server::ServerServer::with_interceptor(
-        services::server::ServerService::new(server_repository),
+        services::server::ServerService::new(server_repository.clone()),
+        interceptor::auth::check_auth,
+    );
+
+    let server_category_server = category_server::CategoryServer::with_interceptor(
+        services::server_category::ServerCategoryService::new(
+            server_repository,
+            server_category_repository,
+        ),
         interceptor::auth::check_auth,
     );
 
@@ -64,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(account_server)
         .add_service(user_server)
         .add_service(server_server)
+        .add_service(server_category_server)
         .add_service(server_member_server)
         .serve(addr)
         .await?;
