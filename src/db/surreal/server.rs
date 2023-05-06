@@ -19,7 +19,7 @@ impl ServerRepositoryImpl {
     }
 }
 
-const COLLECTION_NAME: &str = "server";
+pub const COLLECTION_NAME: &str = "server";
 
 #[async_trait]
 impl ServerRepository for ServerRepositoryImpl {

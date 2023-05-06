@@ -2,20 +2,6 @@
 /* auth */
 DEFINE TABLE auth SCHEMAFULL;
 
-DEFINE FIELD username ON TABLE auth TYPE string ASSERT $value != NONE;
-DEFINE FIELD password ON TABLE auth TYPE string ASSERT $value != NONE;
-DEFINE FIELD email ON TABLE auth TYPE string;
-DEFINE FIELD is_email_verified ON TABLE auth TYPE bool;
-
-DEFINE INDEX authUsernameIndex ON TABLE auth COLUMNS username UNIQUE;
-DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
-
-///////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////
-/* auth */
-DEFINE TABLE auth SCHEMAFULL;
-
 DEFINE FIELD username ON TABLE auth TYPE string
   ASSERT $value != NONE AND $value = /[a-z][a-z0-9_]{1,20}/;
 
@@ -30,3 +16,17 @@ DEFINE INDEX authUsernameIndex ON TABLE auth COLUMNS username UNIQUE;
 DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
 
 ///////////////////////////////////////////////////////////////
+/* server */
+
+
+
+///////////////////////////////////////////////////////////////
+/* category */
+///////////////////////////////////////////////////////////////
+DEFINE TABLE server_category SCHEMAFULL;
+DEFINE FIELD display_name ON TABLE server_category TYPE string ASSERT $value != NONE AND string::len($value) <= 20;
+DEFINE FIELD description ON TABLE server_category TYPE string ASSERT $value == NONE or string::len($value) <= 255;
+DEFINE FIELD server ON TABLE server_category TYPE record(server);
+DEFINE FIELD order ON TABLE server_category TYPE int ASSERT $value >= 0;
+DEFINE FIELD create_time ON TABLE server_category TYPE datetime ASSERT $value != NONE VALUE $value OR time::now();
+DEFINE FIELD update_time ON TABLE server_category TYPE datetime;

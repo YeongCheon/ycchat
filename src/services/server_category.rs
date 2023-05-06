@@ -48,10 +48,12 @@ where
         request: Request<ListCategoriesRequest>,
     ) -> Result<Response<ListCategoriesResponse>, Status> {
         let parent = request.into_inner().parent;
+        let parent = parent.split('/').collect::<Vec<&str>>();
+        let server_id = ServerId::from_string(parent[1]).unwrap();
 
         let list = self
             .server_category_repository
-            .get_server_categories()
+            .get_server_categories(&server_id)
             .await
             .unwrap()
             .into_iter()

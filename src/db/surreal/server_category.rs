@@ -1,9 +1,16 @@
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use surrealdb::{
+    engine::remote::ws::Client,
+    sql::{Id, Thing},
+    Surreal,
+};
 
 use crate::{
     db::traits::server_category::ServerCategoryRepository,
+    models::server::ServerId,
     models::server_category::{DbServerCategory, ServerCategoryId},
 };
+
+use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 
 use super::conn;
 
@@ -61,11 +68,24 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         Ok(1)
     }
 
-    async fn get_server_categories(&self) -> Result<Vec<DbServerCategory>, String> {
+    async fn get_server_categories(
+        &self,
+        server_id: &ServerId,
+    ) -> Result<Vec<DbServerCategory>, String> {
+        let server = Thing {
+            tb: SERVER_COLLECTION_NAME.to_string(),
+            id: Id::String(server_id.to_string()),
+        };
+
         let res = self
             .db
-            .select::<Vec<DbServerCategory>>(COLLECTION_NAME)
-            .await;
+            .query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE server == $server"
+            ))
+            .bind(("server", server))
+            .await
+            .unwrap()
+            .take::<Vec<DbServerCategory>>(0);
 
         match res {
             Ok(res) => Ok(res),

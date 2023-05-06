@@ -1,4 +1,7 @@
-use crate::models::server_category::{DbServerCategory, ServerCategoryId};
+use crate::models::{
+    server::ServerId,
+    server_category::{DbServerCategory, ServerCategoryId},
+};
 
 #[tonic::async_trait]
 pub trait ServerCategoryRepository: Sync + Send {
@@ -10,5 +13,8 @@ pub trait ServerCategoryRepository: Sync + Send {
 
     async fn delete(&self, id: &ServerCategoryId) -> Result<u8, String>;
 
-    async fn get_server_categories(&self) -> Result<Vec<DbServerCategory>, String>; // FIXME
+    async fn get_server_categories(
+        &self,
+        server_id: &ServerId,
+    ) -> Result<Vec<DbServerCategory>, String>; // FIXME
 }

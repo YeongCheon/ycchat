@@ -1,8 +1,12 @@
 use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::{Id, Thing};
 
-use crate::{db::surreal::deserialize_id, services::model::Category};
+use crate::{
+    db::surreal::{deserialize_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME},
+    services::model::Category,
+};
 
 use super::server::DbServer;
 
@@ -12,7 +16,7 @@ pub type ServerCategoryId = String;
 pub struct DbServerCategory {
     #[serde(deserialize_with = "deserialize_id")]
     pub id: ServerCategoryId,
-    pub server: DbServer,
+    pub server: Thing, // FIXME
     pub display_name: String,
     pub description: String,
     pub order: u32,
@@ -23,7 +27,12 @@ pub struct DbServerCategory {
 
 impl DbServerCategory {
     pub fn new(server: DbServer, message: Category) -> Self {
-        let id = message.name.split('/').collect::<Vec<&str>>()[3].to_string();
+        let id = message.name.split('/').collect::<Vec<&str>>()[1].to_string();
+
+        let server = Thing {
+            tb: SERVER_COLLECTION_NAME.to_string(),
+            id: Id::String(server.id.to_string()),
+        };
 
         DbServerCategory {
             id,
