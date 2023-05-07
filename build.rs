@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "protobuf/server/server.proto",
             "protobuf/server/member/server_member.proto",
             "protobuf/server/category/category.proto",
-            "protobuf/server/channel/channel.proto",
+            "protobuf/channel/channel.proto",
             "protobuf/message/message.proto",
             "protobuf/message/reaction.proto",
             "protobuf/auth/auth.proto",

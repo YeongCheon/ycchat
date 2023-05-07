@@ -14,8 +14,9 @@ use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 
 use super::conn;
 
-const COLLECTION_NAME: &str = "server_category";
+pub const COLLECTION_NAME: &str = "server_category";
 
+#[derive(Clone)]
 pub struct ServerCategoryRepositoryImpl {
     db: Surreal<Client>,
 }

@@ -1,6 +1,6 @@
 use db::{
     surreal::{
-        auth::AuthRepositoryImpl, server::ServerRepositoryImpl,
+        auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, server::ServerRepositoryImpl,
         server_category::ServerCategoryRepositoryImpl, server_member::ServerMemberRepositoryImpl,
         user::UserRepositoryImpl,
     },
@@ -11,6 +11,7 @@ use services::{
     auth::AuthService,
     ycchat_account::account_server,
     ycchat_auth::auth_server,
+    ycchat_channel::channel_server,
     ycchat_server::member::server_member_server,
     ycchat_server::{category::category_server, server_server},
     ycchat_user::user_server,
@@ -41,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_repository = ServerRepositoryImpl::new().await;
     let server_category_repository = ServerCategoryRepositoryImpl::new().await;
     let server_member_repository = ServerMemberRepositoryImpl::new().await;
+    let channel_repository = ChannelRepositoryImpl::new().await;
 
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
 
@@ -62,14 +64,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server_category_server = category_server::CategoryServer::with_interceptor(
         services::server_category::ServerCategoryService::new(
-            server_repository,
-            server_category_repository,
+            server_repository.clone(),
+            server_category_repository.clone(),
         ),
         interceptor::auth::check_auth,
     );
 
     let server_member_server = server_member_server::ServerMemberServer::with_interceptor(
         services::server_member::ServerMemberService::new(server_member_repository),
+        interceptor::auth::check_auth,
+    );
+
+    let channel_server = channel_server::ChannelServer::with_interceptor(
+        services::channel::ChannelService::new(
+            channel_repository,
+            server_repository,
+            server_category_repository,
+        ),
         interceptor::auth::check_auth,
     );
 
@@ -80,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(server_server)
         .add_service(server_category_server)
         .add_service(server_member_server)
+        .add_service(channel_server)
         .serve(addr)
         .await?;
 
