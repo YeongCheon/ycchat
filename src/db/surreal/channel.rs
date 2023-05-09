@@ -1,3 +1,4 @@
+use serde::Serializer;
 use surrealdb::{
     engine::remote::ws::Client,
     sql::{Id, Thing},
@@ -89,4 +90,13 @@ impl ChannelRepository for ChannelRepositoryImpl {
 
         Ok(1)
     }
+}
+
+pub fn serialize_id<S>(channel_id: &ChannelId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = format!("{}:{}", COLLECTION_NAME, channel_id);
+
+    s.serialize_str(&surreal_id)
 }

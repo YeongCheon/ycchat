@@ -6,7 +6,7 @@ use surrealdb::sql::{Id, Thing};
 use ulid::Ulid;
 
 use crate::db::surreal::{
-    deserialize_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME,
+    channel::serialize_id, deserialize_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME,
     server_category::COLLECTION_NAME as SERVER_CATEGORY_COLLECTION_NAME,
 };
 
@@ -16,7 +16,7 @@ pub type ChannelId = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbChannel {
-    #[serde(deserialize_with = "deserialize_id")]
+    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
     pub id: ChannelId,
     pub channel_type: ChannelType,
     pub display_name: String,

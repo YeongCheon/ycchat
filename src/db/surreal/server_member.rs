@@ -1,3 +1,4 @@
+use serde::Serializer;
 use surrealdb::{engine::remote::ws::Client, Surreal};
 
 use crate::{
@@ -79,4 +80,13 @@ impl ServerMemberRepository for ServerMemberRepositoryImpl {
             Err(e) => Err(e.to_string()),
         }
     }
+}
+
+pub fn serialize_id<S>(server_member_id: &ServerMemberId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = format!("{}:{}", COLLECTION_NAME, server_member_id);
+
+    s.serialize_str(&surreal_id)
 }

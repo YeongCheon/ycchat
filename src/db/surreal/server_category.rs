@@ -1,3 +1,4 @@
+use serde::Serializer;
 use surrealdb::{
     engine::remote::ws::Client,
     sql::{Id, Thing},
@@ -93,4 +94,13 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
             Err(e) => Err(e.to_string()),
         }
     }
+}
+
+pub fn serialize_id<S>(server_id: &ServerCategoryId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = format!("{}:{}", COLLECTION_NAME, server_id);
+
+    s.serialize_str(&surreal_id)
 }

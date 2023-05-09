@@ -1,22 +1,29 @@
 use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Id, Thing};
 
 use crate::{
-    db::surreal::{deserialize_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME},
+    db::surreal::{
+        deserialize_id, deserialize_ulid_id, server::serialize_id as server_serialize_id,
+        server_category::serialize_id,
+    },
     services::model::Category,
 };
 
-use super::server::DbServer;
+use super::server::{DbServer, ServerId};
 
 pub type ServerCategoryId = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbServerCategory {
-    #[serde(deserialize_with = "deserialize_id")]
+    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
     pub id: ServerCategoryId,
-    pub server: Thing, // FIXME
+
+    #[serde(
+        serialize_with = "server_serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
+    pub server: ServerId,
     pub display_name: String,
     pub description: String,
     pub order: u32,
@@ -29,14 +36,9 @@ impl DbServerCategory {
     pub fn new(server: DbServer, message: Category) -> Self {
         let id = message.name.split('/').collect::<Vec<&str>>()[1].to_string();
 
-        let server = Thing {
-            tb: SERVER_COLLECTION_NAME.to_string(),
-            id: Id::String(server.id.to_string()),
-        };
-
         DbServerCategory {
             id,
-            server,
+            server: server.id,
             display_name: message.display_name,
             description: message.description,
             order: message.order,
@@ -47,7 +49,7 @@ impl DbServerCategory {
 
     pub fn to_message(self) -> Category {
         Category {
-            name: format!("servers/{}/categories/{}", self.server.id, self.id),
+            name: format!("servers/{}/categories/{}", self.server, self.id),
             display_name: self.display_name,
             description: self.description,
             order: self.order,

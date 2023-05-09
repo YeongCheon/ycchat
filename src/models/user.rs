@@ -8,9 +8,11 @@ pub type UserId = String;
 
 use crate::services::model::User as UserMessage;
 
+use crate::db::surreal::{deserialize_id, user::serialize_id};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbUser {
-    #[serde(rename(serialize = "user_id", deserialize = "user_id"))] // FIXME
+    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
     pub id: UserId,
     pub display_name: String,
     pub description: String,

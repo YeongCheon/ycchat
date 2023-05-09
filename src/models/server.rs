@@ -8,9 +8,14 @@ use super::attachment::Attachment;
 
 pub type ServerId = ulid::Ulid;
 
+use crate::db::surreal::{deserialize_ulid_id, server::serialize_id};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbServer {
-    #[serde(rename(serialize = "server_id", deserialize = "server_id"))] // FIXME
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: ServerId,
     pub display_name: String, // TITLE
     pub description: String,

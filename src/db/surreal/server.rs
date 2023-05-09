@@ -1,3 +1,4 @@
+use serde::Serializer;
 use surrealdb::{engine::remote::ws::Client, Surreal};
 use tonic::async_trait;
 
@@ -75,4 +76,13 @@ impl ServerRepository for ServerRepositoryImpl {
             Err(e) => Err(e.to_string()),
         }
     }
+}
+
+pub fn serialize_id<S>(server_id: &ServerId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = format!("{}:{}", COLLECTION_NAME, server_id);
+
+    s.serialize_str(&surreal_id)
 }
