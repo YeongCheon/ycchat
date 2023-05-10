@@ -82,7 +82,7 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         let res = self
             .db
             .query(format!(
-                "SELECT * FROM {COLLECTION_NAME} WHERE server == $server"
+                "SELECT * FROM {COLLECTION_NAME} WHERE server_id == $server"
             ))
             .bind(("server", server))
             .await
