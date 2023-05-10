@@ -4,7 +4,7 @@ use argon2::{
 };
 use tonic::{Request, Response, Status};
 
-use crate::db::traits::auth::AuthRepository;
+use crate::{db::traits::auth::AuthRepository, models::user::UserId};
 
 use super::ycchat_account::{account_server::Account, DeleteAccountRequest, UpdatePasswordRequest};
 
@@ -40,6 +40,8 @@ where
             .to_str()
             .unwrap()
             .to_string(); // FIXME
+
+        let user_id = UserId::from_string(&user_id).unwrap();
 
         let request = request.into_inner();
 
@@ -86,6 +88,8 @@ where
             .to_str()
             .unwrap()
             .to_string(); // FIXME
+
+        let user_id = UserId::from_string(&user_id).unwrap();
 
         self.auth_repository.delete(&user_id).await.unwrap();
 

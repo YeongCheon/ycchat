@@ -22,7 +22,7 @@ pub fn check_auth(mut req: Request<()>) -> Result<Request<()>, Status> {
 
         let aud = token_data.claims.aud;
 
-        let val: AsciiMetadataValue = match AsciiMetadataValue::try_from(aud.as_str()) {
+        let val: AsciiMetadataValue = match AsciiMetadataValue::try_from(aud.to_string()) {
             Ok(val) => val,
             Err(err) => return Err(Status::unauthenticated(err.to_string())),
         };

@@ -45,7 +45,7 @@ impl DbServerMember {
     pub fn to_message(self) -> ServerMember {
         ServerMember {
             name: format!("servers/{}/membmers/{}", self.server.id, self.user.id),
-            user: self.user.id,
+            user: self.user.id.to_string(),
             display_name: self.display_name,
             description: self.description,
             avartar: None, // FIXME

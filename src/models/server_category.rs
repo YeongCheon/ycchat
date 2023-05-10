@@ -5,7 +5,7 @@ use ulid::Ulid;
 
 use crate::{
     db::surreal::{
-        deserialize_id, deserialize_ulid_id, server::serialize_id as server_serialize_id,
+        deserialize_ulid_id, server::serialize_id as server_serialize_id,
         server_category::serialize_id,
     },
     services::model::Category,
@@ -13,11 +13,14 @@ use crate::{
 
 use super::server::{DbServer, ServerId};
 
-pub type ServerCategoryId = String;
+pub type ServerCategoryId = Ulid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbServerCategory {
-    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: ServerCategoryId,
 
     #[serde(
@@ -35,7 +38,7 @@ pub struct DbServerCategory {
 
 impl DbServerCategory {
     pub fn new(server: DbServer, message: Category) -> Self {
-        let id = Ulid::new().to_string();
+        let id = Ulid::new();
 
         DbServerCategory {
             id,

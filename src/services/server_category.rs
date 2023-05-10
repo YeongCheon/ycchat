@@ -73,7 +73,7 @@ where
         let name = request.into_inner().name; // servers/{UUID}/categories/{UUID}
         let name = name.split('/').collect::<Vec<&str>>();
         let server_id = ServerId::from_string(name[1]).unwrap();
-        let server_category_id: ServerCategoryId = name[3].to_string();
+        let server_category_id: ServerCategoryId = ServerCategoryId::from_string(name[3]).unwrap();
 
         let category = self
             .server_category_repository
@@ -127,7 +127,7 @@ where
         let name = &category.name; // servers/{UUID}/categories/{UUID}
         let name = name.split('/').collect::<Vec<&str>>();
         let server_id = ServerId::from_string(name[1]).unwrap();
-        let server_category_id: ServerCategoryId = name[3].to_string();
+        let server_category_id: ServerCategoryId = ServerCategoryId::from_string(name[3]).unwrap();
 
         let mut exist_category = self
             .server_category_repository
@@ -161,7 +161,7 @@ where
         let name = name.split('/').collect::<Vec<&str>>();
 
         let server_id = ServerId::from_string(name[1]).unwrap();
-        let server_category_id: ServerCategoryId = name[3].to_string();
+        let server_category_id: ServerCategoryId = ServerCategoryId::from_string(name[3]).unwrap();
 
         self.server_category_repository
             .delete(&server_category_id)

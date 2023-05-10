@@ -79,7 +79,7 @@ where
             Err(err) => return Err(Status::unauthenticated(err.to_string())),
         };
 
-        let user_id = Ulid::new().to_string();
+        let user_id = Ulid::new();
 
         let res = self
             .auth_repository
@@ -102,7 +102,7 @@ where
         self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignUpResponse {
-            user_id: res.id,
+            user_id: res.id.to_string(),
             access_token,
             refresh_token,
             expires_in: 3600,
@@ -145,7 +145,7 @@ where
         self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignInResponse {
-            user_id,
+            user_id: user_id.to_string(),
             access_token,
             refresh_token,
             expires_in: 3600,

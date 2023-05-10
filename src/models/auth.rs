@@ -1,13 +1,16 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use super::user::UserId;
 use crate::db::surreal::auth::serialize_id;
-use crate::db::surreal::deserialize_id;
+use crate::db::surreal::deserialize_ulid_id;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbAuth {
-    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: UserId,
     pub username: String,
     pub password: String,
