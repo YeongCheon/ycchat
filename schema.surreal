@@ -26,7 +26,7 @@ DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
 DEFINE TABLE server_category SCHEMAFULL;
 DEFINE FIELD display_name ON TABLE server_category TYPE string ASSERT $value != NONE AND string::len($value) <= 20;
 DEFINE FIELD description ON TABLE server_category TYPE string ASSERT $value == NONE or string::len($value) <= 255;
-DEFINE FIELD server ON TABLE server_category TYPE record(server);
+DEFINE FIELD server ON TABLE server_category TYPE record(server) ASSERT $value != NONE;
 DEFINE FIELD order ON TABLE server_category TYPE int ASSERT $value >= 0;
 DEFINE FIELD create_time ON TABLE server_category TYPE datetime ASSERT $value != NONE VALUE $value OR time::now();
 DEFINE FIELD update_time ON TABLE server_category TYPE datetime;

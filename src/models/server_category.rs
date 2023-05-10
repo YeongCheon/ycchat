@@ -1,6 +1,8 @@
 use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Thing;
+use ulid::Ulid;
 
 use crate::{
     db::surreal::{
@@ -34,7 +36,7 @@ pub struct DbServerCategory {
 
 impl DbServerCategory {
     pub fn new(server: DbServer, message: Category) -> Self {
-        let id = message.name.split('/').collect::<Vec<&str>>()[1].to_string();
+        let id = Ulid::new().to_string();
 
         DbServerCategory {
             id,

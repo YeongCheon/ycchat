@@ -1,4 +1,4 @@
-use serde::Serializer;
+use serde::{Serialize, Serializer};
 use surrealdb::{
     engine::remote::ws::Client,
     sql::{Id, Thing},
@@ -39,11 +39,11 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         }
     }
 
-    async fn add(&self, server_member: &DbServerCategory) -> Result<DbServerCategory, String> {
+    async fn add(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String> {
         let created: DbServerCategory = self
             .db
-            .create((COLLECTION_NAME, server_member.id.to_string()))
-            .content(server_member)
+            .create((COLLECTION_NAME, server_category.id.to_string()))
+            .content(server_category)
             .await
             .unwrap();
 
@@ -96,11 +96,10 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
     }
 }
 
-pub fn serialize_id<S>(server_id: &ServerCategoryId, s: S) -> Result<S::Ok, S::Error>
+pub fn serialize_id<S>(id: &ServerCategoryId, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let surreal_id = format!("{}:{}", COLLECTION_NAME, server_id);
-
-    s.serialize_str(&surreal_id)
+    let surreal_id = Thing::from((COLLECTION_NAME.to_string(), id.to_string()));
+    surreal_id.serialize(s)
 }

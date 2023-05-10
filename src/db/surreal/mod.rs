@@ -46,8 +46,7 @@ where
     D: Deserializer<'de>,
 {
     let id = Thing::deserialize(deserializer)?;
+    let id = Ulid::from_string(&id.id.to_string()).unwrap();
 
-    let res = Ulid::from_string(&id.id.to_string()).unwrap();
-
-    Ok(res)
+    Ok(id)
 }

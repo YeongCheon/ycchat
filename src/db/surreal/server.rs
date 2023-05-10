@@ -1,5 +1,5 @@
-use serde::Serializer;
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use serde::{Serialize, Serializer};
+use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
 use tonic::async_trait;
 
 use crate::{
@@ -78,11 +78,10 @@ impl ServerRepository for ServerRepositoryImpl {
     }
 }
 
-pub fn serialize_id<S>(server_id: &ServerId, s: S) -> Result<S::Ok, S::Error>
+pub fn serialize_id<S>(id: &ServerId, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let surreal_id = format!("{}:{}", COLLECTION_NAME, server_id);
-
-    s.serialize_str(&surreal_id)
+    let surreal_id = Thing::from((COLLECTION_NAME.to_string(), id.to_string()));
+    surreal_id.serialize(s)
 }
