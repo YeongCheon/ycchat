@@ -1,7 +1,6 @@
 use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use ulid::Ulid;
 
 use crate::{
