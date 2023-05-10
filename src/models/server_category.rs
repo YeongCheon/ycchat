@@ -25,7 +25,7 @@ pub struct DbServerCategory {
         serialize_with = "server_serialize_id",
         deserialize_with = "deserialize_ulid_id"
     )]
-    pub server: ServerId,
+    pub server_id: ServerId,
     pub display_name: String,
     pub description: String,
     pub order: u32,
@@ -40,7 +40,7 @@ impl DbServerCategory {
 
         DbServerCategory {
             id,
-            server: server.id,
+            server_id: server.id,
             display_name: message.display_name,
             description: message.description,
             order: message.order,
@@ -51,7 +51,7 @@ impl DbServerCategory {
 
     pub fn to_message(self) -> Category {
         Category {
-            name: format!("servers/{}/categories/{}", self.server, self.id),
+            name: format!("servers/{}/categories/{}", self.server_id, self.id),
             display_name: self.display_name,
             description: self.description,
             order: self.order,
