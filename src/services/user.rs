@@ -8,7 +8,7 @@ use super::ycchat_user::{
     CreateUserRequest, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse,
     UpdateUserRequest,
 };
-use crate::models::user::DbUser;
+use crate::models::user::{DbUser, UserId};
 
 pub struct UserService<U>
 where
@@ -48,7 +48,7 @@ where
         let req = request.into_inner();
         let name = req.name;
 
-        let id = name.split('/').collect::<Vec<&str>>()[1].to_string();
+        let id = UserId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
 
         let user = self.user_repository.get_user(&id).await.unwrap();
 
@@ -59,13 +59,8 @@ where
         &self,
         request: tonic::Request<CreateUserRequest>,
     ) -> Result<tonic::Response<User>, tonic::Status> {
-        let user_id = request
-            .metadata()
-            .get("user_id")
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(); // FIXME
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
 
         let req = request.into_inner();
 
@@ -114,7 +109,7 @@ where
         let req = request.into_inner();
         let name = req.name;
 
-        let id = name.split('/').collect::<Vec<&str>>()[1].to_string();
+        let id = UserId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
 
         self.user_repository.delete_user(&id).await.unwrap();
 

@@ -1,8 +1,7 @@
-use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use tonic::{metadata::AsciiMetadataValue, Request, Status};
 
-use crate::util::variable::JWT_SECRET;
+use crate::auth::jwt::decode;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -10,23 +9,20 @@ struct Claims {
 }
 
 pub fn check_auth(mut req: Request<()>) -> Result<Request<()>, Status> {
-    let key = DecodingKey::from_secret(JWT_SECRET.as_ref());
-    let validation = Validation::new(jsonwebtoken::Algorithm::HS256);
-
     if let Some(t) = req.metadata().get("authorization") {
         let b = t.as_bytes().to_vec();
         let token = String::from_utf8(b).unwrap();
 
-        let token_data = match decode::<Claims>(&token, &key, &validation) {
+        let token_data = match decode(&token) {
             Ok(res) => res,
             Err(err) => {
                 return Err(Status::unauthenticated(err.to_string()));
             }
         };
 
-        let sub = token_data.claims.sub;
+        let aud = token_data.claims.aud;
 
-        let val: AsciiMetadataValue = match AsciiMetadataValue::try_from(sub.as_str()) {
+        let val: AsciiMetadataValue = match AsciiMetadataValue::try_from(aud.to_string()) {
             Ok(val) => val,
             Err(err) => return Err(Status::unauthenticated(err.to_string())),
         };

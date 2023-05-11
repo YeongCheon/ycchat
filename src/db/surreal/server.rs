@@ -1,4 +1,5 @@
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use serde::{Serialize, Serializer};
+use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
 use tonic::async_trait;
 
 use crate::{
@@ -8,6 +9,7 @@ use crate::{
 
 use super::conn;
 
+#[derive(Clone)]
 pub struct ServerRepositoryImpl {
     db: Surreal<Client>,
 }
@@ -18,7 +20,7 @@ impl ServerRepositoryImpl {
     }
 }
 
-const COLLECTION_NAME: &str = "server";
+pub const COLLECTION_NAME: &str = "server";
 
 #[async_trait]
 impl ServerRepository for ServerRepositoryImpl {
@@ -74,4 +76,12 @@ impl ServerRepository for ServerRepositoryImpl {
             Err(e) => Err(e.to_string()),
         }
     }
+}
+
+pub fn serialize_id<S>(id: &ServerId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = Thing::from((COLLECTION_NAME.to_string(), id.to_string()));
+    surreal_id.serialize(s)
 }

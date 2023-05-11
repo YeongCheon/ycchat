@@ -1,16 +1,24 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Timelike, Utc};
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use ulid::Ulid;
 
 use super::attachment::Attachment;
 
-pub type UserId = String;
+pub type UserId = Ulid;
 
 use crate::services::model::User as UserMessage;
 
+use crate::db::surreal::{deserialize_ulid_id, user::serialize_id};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbUser {
-    #[serde(rename(serialize = "user_id", deserialize = "user_id"))] // FIXME
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: UserId,
     pub display_name: String,
     pub description: String,
@@ -39,7 +47,7 @@ impl DbUser {
 
     pub fn from(message: UserMessage) -> Self {
         DbUser {
-            id: message.name.split('/').collect::<Vec<&str>>()[1].to_string(),
+            id: Ulid::from_str(message.name.split('/').collect::<Vec<&str>>()[1]).unwrap(),
             display_name: message.display_name,
             description: message.description,
             avatar: None,

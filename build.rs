@@ -14,10 +14,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "protobuf/user/user.proto",
             "protobuf/server/server.proto",
             "protobuf/server/member/server_member.proto",
-            "protobuf/category/category.proto",
+            "protobuf/server/category/category.proto",
             "protobuf/channel/channel.proto",
             "protobuf/message/message.proto",
             "protobuf/message/reaction.proto",
+            "protobuf/auth/auth.proto",
+            "protobuf/account/account.proto",
         ],
         &["protobuf"],
     )?;

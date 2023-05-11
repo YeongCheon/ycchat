@@ -1,4 +1,5 @@
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use serde::{Serialize, Serializer};
+use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
 use tonic::async_trait;
 
 use super::super::traits::user::UserRepository;
@@ -71,4 +72,12 @@ impl UserRepository for UserRepositoryImpl {
             Err(e) => Err(e.to_string()),
         }
     }
+}
+
+pub fn serialize_id<S>(id: &UserId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let surreal_id = Thing::from((COLLECTION_NAME.to_string(), id.to_string()));
+    surreal_id.serialize(s)
 }

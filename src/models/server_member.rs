@@ -10,9 +10,14 @@ use super::user::DbUser;
 
 pub type ServerMemberId = ulid::Ulid;
 
+use crate::db::surreal::{deserialize_ulid_id, server_member::serialize_id};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbServerMember {
-    #[serde(rename(serialize = "server_member_id", deserialize = "server_member_id"))] // FIXME
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: ServerMemberId,
     pub server: DbServer,
     pub user: DbUser, // FIXME
@@ -40,7 +45,7 @@ impl DbServerMember {
     pub fn to_message(self) -> ServerMember {
         ServerMember {
             name: format!("servers/{}/membmers/{}", self.server.id, self.user.id),
-            user: self.user.id,
+            user: self.user.id.to_string(),
             display_name: self.display_name,
             description: self.description,
             avartar: None, // FIXME
