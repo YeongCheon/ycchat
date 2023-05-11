@@ -50,11 +50,11 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         Ok(created)
     }
 
-    async fn update(&self, server_member: &DbServerCategory) -> Result<DbServerCategory, String> {
+    async fn update(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String> {
         let res: Option<DbServerCategory> = self
             .db
-            .update((COLLECTION_NAME, server_member.id.to_string()))
-            .content(server_member.clone())
+            .update((COLLECTION_NAME, server_category.id.to_string()))
+            .content(server_category.clone())
             .await
             .unwrap();
 
