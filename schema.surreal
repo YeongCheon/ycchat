@@ -17,8 +17,12 @@ DEFINE INDEX authEmailIndex ON TABLE auth COLUMNS email UNIQUE;
 
 ///////////////////////////////////////////////////////////////
 /* server */
-
-
+DEFINE TABLE server SCHEMAFULL;
+DEFINE FIELD display_name ON TABLE server TYPE string ASSERT $value != NONE AND string::len($value) <= 20;
+DEFINE FIELD description ON TABLE server TYPE string ASSERT $value == NONE or string::len($value) <= 255;
+// TODO: icon
+DEFINE FIELD create_time ON TABLE server TYPE datetime ASSERT $value != NONE VALUE $value OR time::now();
+DEFINE FIELD update_time ON TABLE server TYPE datetime;
 
 ///////////////////////////////////////////////////////////////
 /* category */
