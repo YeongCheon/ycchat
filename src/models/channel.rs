@@ -6,17 +6,20 @@ use surrealdb::sql::{Id, Thing};
 use ulid::Ulid;
 
 use crate::db::surreal::{
-    channel::serialize_id, deserialize_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME,
+    channel::serialize_id, deserialize_ulid_id, server::COLLECTION_NAME as SERVER_COLLECTION_NAME,
     server_category::COLLECTION_NAME as SERVER_CATEGORY_COLLECTION_NAME,
 };
 
 use super::{attachment::Attachment, server::DbServer, server_category::DbServerCategory};
 
-pub type ChannelId = String;
+pub type ChannelId = Ulid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbChannel {
-    #[serde(serialize_with = "serialize_id", deserialize_with = "deserialize_id")]
+    #[serde(
+        serialize_with = "serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub id: ChannelId,
     pub channel_type: ChannelType,
     pub display_name: String,
@@ -53,7 +56,7 @@ impl DbChannel {
         });
 
         DbChannel {
-            id: Ulid::new().to_string(),
+            id: ChannelId::new(),
             channel_type: ChannelType::from(
                 ChannelTypeMessage::from_i32(message.channel_type).unwrap(),
             ),
@@ -124,7 +127,7 @@ impl From<Channel> for DbChannel {
         };
 
         DbChannel {
-            id: message.name.split('/').collect::<Vec<&str>>()[1].to_string(),
+            id: ChannelId::from_string(message.name.split('/').collect::<Vec<&str>>()[1]).unwrap(),
             channel_type: ChannelType::from(
                 ChannelTypeMessage::from_i32(message.channel_type).unwrap(),
             ),

@@ -164,7 +164,7 @@ where
 
         let mut exist = match channel_index {
             Some(idx) => {
-                let channel_id: ChannelId = name[idx].to_string();
+                let channel_id = ChannelId::from_string(&name[idx]).unwrap();
 
                 match self.channel_repository.get(&channel_id).await {
                     Ok(channel) => match channel {
@@ -198,7 +198,7 @@ where
             .map(|idx| idx + 1);
 
         let channel_id: ChannelId = match channel_index {
-            Some(idx) => name[idx].to_string(),
+            Some(idx) => ChannelId::from_string(&name[idx]).unwrap(),
             None => return Err(Status::invalid_argument("invalid arguments.")),
         };
 
