@@ -8,6 +8,7 @@ use crate::db::traits::server_category::ServerCategoryRepository;
 use crate::models::channel::{ChannelId, DbChannel};
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
+use crate::models::user::UserId;
 
 use super::model::Channel as ChannelModel;
 use super::ycchat_channel::channel_server::Channel;
@@ -83,6 +84,9 @@ where
         &self,
         request: Request<CreateChannelRequest>,
     ) -> Result<Response<ChannelModel>, Status> {
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
+
         let channel = match request.into_inner().channel {
             Some(channel) => channel,
             None => return Err(Status::invalid_argument("invalid arguments")),
@@ -133,7 +137,7 @@ where
             None => None,
         };
 
-        let channel = DbChannel::new(channel, server, category);
+        let channel = DbChannel::new(user_id, channel, server.map(|server| server.id));
 
         let added = self.channel_repository.add(&channel).await.unwrap();
 

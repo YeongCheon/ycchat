@@ -10,7 +10,12 @@ use crate::db::surreal::{
     server_category::COLLECTION_NAME as SERVER_CATEGORY_COLLECTION_NAME,
 };
 
-use super::{attachment::Attachment, server::DbServer, server_category::DbServerCategory};
+use super::{
+    attachment::Attachment,
+    server::{DbServer, ServerId},
+    server_category::DbServerCategory,
+    user::UserId,
+};
 
 pub type ChannelId = Ulid;
 
@@ -26,46 +31,37 @@ pub struct DbChannel {
     pub description: String,
     pub order: u64,
     pub icon: Option<Attachment>,
-    pub server: Option<Thing>,   // FIXME
-    pub category: Option<Thing>, // FIXME
     pub create_time: DateTime<Utc>,
     pub update_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum ChannelType {
-    Saved,  // self
-    Direct, // 1:1 direct message
-    Server,
+    Saved { owner: UserId }, // self
+    Direct,                  // 1:1 direct message
+    Server { server: ServerId },
 }
 
 impl DbChannel {
-    pub fn new(
-        message: Channel,
-        server: Option<DbServer>,
-        category: Option<DbServerCategory>,
-    ) -> Self {
-        let server: Option<Thing> = server.map(|server| Thing {
-            tb: SERVER_COLLECTION_NAME.to_string(),
-            id: Id::from(server.id.to_string()),
-        });
+    pub fn new(owner: UserId, message: Channel, server: Option<ServerId>) -> Self {
+        let channel_type = ChannelTypeMessage::from_i32(message.channel_type).unwrap();
 
-        let category = category.map(|category| Thing {
-            tb: SERVER_CATEGORY_COLLECTION_NAME.to_string(),
-            id: Id::from(category.id.to_string()),
-        });
+        let channel_type = match channel_type {
+            ChannelTypeMessage::Saved => ChannelType::Saved { owner },
+            ChannelTypeMessage::Direct => ChannelType::Direct,
+            ChannelTypeMessage::Server => ChannelType::Server {
+                server: server.unwrap(),
+            },
+        };
 
         DbChannel {
             id: ChannelId::new(),
-            channel_type: ChannelType::from(
-                ChannelTypeMessage::from_i32(message.channel_type).unwrap(),
-            ),
+            channel_type,
             display_name: message.display_name,
             description: message.description,
             order: 0,
             icon: None,
-            server,
-            category,
             create_time: chrono::offset::Utc::now(),
             update_time: None,
         }
@@ -100,65 +96,24 @@ impl DbChannel {
     }
 }
 
-impl From<Channel> for DbChannel {
-    fn from(message: Channel) -> Self {
-        let create_time = match message.create_time {
-            Some(create_time) => {
-                let create_time = NaiveDateTime::from_timestamp_millis(create_time.seconds * 1000)
-                    .unwrap()
-                    .with_nanosecond(create_time.nanos as u32)
-                    .unwrap();
-
-                DateTime::<Utc>::from_utc(create_time, Utc)
-            }
-            None => chrono::offset::Utc::now(),
-        };
-
-        let update_time = match message.update_time {
-            Some(update_time) => {
-                let create_time = NaiveDateTime::from_timestamp_millis(update_time.seconds * 1000)
-                    .unwrap()
-                    .with_nanosecond(update_time.nanos as u32)
-                    .unwrap();
-
-                Some(DateTime::<Utc>::from_utc(create_time, Utc))
-            }
-            None => None,
-        };
-
-        DbChannel {
-            id: ChannelId::from_string(message.name.split('/').collect::<Vec<&str>>()[1]).unwrap(),
-            channel_type: ChannelType::from(
-                ChannelTypeMessage::from_i32(message.channel_type).unwrap(),
-            ),
-            display_name: message.display_name,
-            description: message.description,
-            server: None,
-            category: None,
-            order: 0,   // FIXME
-            icon: None, // FIXME
-            create_time,
-            update_time,
-        }
-    }
-}
-
-impl From<ChannelTypeMessage> for ChannelType {
-    fn from(value: ChannelTypeMessage) -> Self {
-        match value {
-            ChannelTypeMessage::Saved => ChannelType::Saved,
-            ChannelTypeMessage::Direct => ChannelType::Direct,
-            ChannelTypeMessage::Server => ChannelType::Server,
-        }
-    }
-}
-
 impl ChannelType {
+    pub fn new_saved(&self, owner: UserId) -> ChannelType {
+        ChannelType::Saved { owner }
+    }
+
+    pub fn new_direct(&self) -> ChannelType {
+        ChannelType::Direct
+    }
+
+    pub fn new_server(&self, server: ServerId) -> ChannelType {
+        ChannelType::Server { server }
+    }
+
     pub fn to_message(&self) -> ChannelTypeMessage {
         match self {
-            Self::Saved => ChannelTypeMessage::Saved,
+            ChannelType::Saved { owner } => ChannelTypeMessage::Saved,
             Self::Direct => ChannelTypeMessage::Direct,
-            Self::Server => ChannelTypeMessage::Server,
+            ChannelType::Server { server } => ChannelTypeMessage::Server,
         }
     }
 }
