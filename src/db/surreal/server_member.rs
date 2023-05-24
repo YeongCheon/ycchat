@@ -1,8 +1,14 @@
 use serde::{Serialize, Serializer};
-use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
+use surrealdb::{
+    engine::remote::ws::Client,
+    sql::{Id, Thing},
+    Surreal,
+};
 
+use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 use crate::{
     db::traits::server_member::ServerMemberRepository,
+    models::server::ServerId,
     models::server_member::{DbServerMember, ServerMemberId},
 };
 
@@ -74,6 +80,31 @@ impl ServerMemberRepository for ServerMemberRepositoryImpl {
 
     async fn get_server_members(&self) -> Result<Vec<DbServerMember>, String> {
         let res = self.db.select::<Vec<DbServerMember>>(COLLECTION_NAME).await;
+
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    async fn get_server_members_by_server_id(
+        &self,
+        server_id: &ServerId,
+    ) -> Result<Vec<DbServerMember>, String> {
+        let server = Thing {
+            tb: SERVER_COLLECTION_NAME.to_string(),
+            id: Id::String(server_id.to_string()),
+        };
+
+        let res = self
+            .db
+            .query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE server == $server"
+            ))
+            .bind(("server", server))
+            .await
+            .unwrap()
+            .take::<Vec<DbServerMember>>(0);
 
         match res {
             Ok(res) => Ok(res),
