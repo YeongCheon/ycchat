@@ -9,9 +9,11 @@ use db::{
 use services::{
     account::AccountService,
     auth::AuthService,
+    connect::ConnectService,
     ycchat_account::account_server,
     ycchat_auth::auth_server,
     ycchat_channel::channel_server,
+    ycchat_connect::connect_server,
     ycchat_server::member::server_member_server,
     ycchat_server::{category::category_server, server_server},
     ycchat_user::user_server,
@@ -45,6 +47,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let channel_repository = ChannelRepositoryImpl::new().await;
 
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
+
+    let connect_server = connect_server::ConnectServer::with_interceptor(
+        ConnectService::new(
+            channel_repository.clone(),
+            server_repository.clone(),
+            server_member_repository.clone(),
+        ),
+        interceptor::auth::check_auth,
+    );
 
     let account_server = account_server::AccountServer::with_interceptor(
         AccountService::new(auth_repository),
@@ -85,6 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     Server::builder()
+        .add_service(connect_server)
         .add_service(auth_server)
         .add_service(account_server)
         .add_service(user_server)

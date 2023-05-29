@@ -17,6 +17,7 @@ use super::conn;
 
 const COLLECTION_NAME: &str = "channel";
 
+#[derive(Clone)]
 pub struct ChannelRepositoryImpl {
     db: Surreal<Client>,
 }

@@ -14,6 +14,7 @@ use crate::{
 
 use super::conn;
 
+#[derive(Clone)]
 pub struct ServerMemberRepositoryImpl {
     db: Surreal<Client>,
 }

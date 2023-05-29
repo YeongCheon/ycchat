@@ -1,11 +1,12 @@
-use crate::chat::ycchat::ChatMessage;
+// use super::model::Message;
+use crate::services::model::Message;
 
 use super::RedisClient;
 use redis::Commands;
 use tokio::sync::mpsc::Sender;
 
 impl RedisClient {
-    pub fn chat_subscribe(&self, tx: Sender<ChatMessage>) {
+    pub fn chat_subscribe(&self, tx: Sender<Message>) {
         let mut con = self.client.get_connection().unwrap();
 
         let channel = self.generate_chat_pubsub_key();
@@ -16,7 +17,7 @@ impl RedisClient {
                 pubsub.subscribe(channel).unwrap();
 
                 while let Ok(msg) = pubsub.get_message() {
-                    let payload: ChatMessage = msg.get_payload().unwrap();
+                    let payload: Message = msg.get_payload().unwrap();
                     tx.blocking_send(payload).unwrap();
                 }
             })
@@ -25,7 +26,7 @@ impl RedisClient {
         });
     }
 
-    pub fn chat_publish(&self, message: &ChatMessage) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn chat_publish(&self, message: &Message) -> Result<(), Box<dyn std::error::Error>> {
         let mut con = self.client.get_connection().unwrap();
 
         let channel = self.generate_chat_pubsub_key();
