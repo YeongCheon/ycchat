@@ -8,11 +8,14 @@ use ulid::Ulid;
 pub type MessageId = Ulid;
 
 use crate::{
-    db::surreal::{deserialize_ulid_id, message::serialize_id},
+    db::surreal::{
+        channel::serialize_id as channel_serialize_id, deserialize_ulid_id, message::serialize_id,
+        user::serialize_id as user_serialize_id,
+    },
     services::model::Message,
 };
 
-use super::user::UserId;
+use super::{channel::ChannelId, user::UserId};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbMessage {
@@ -21,6 +24,17 @@ pub struct DbMessage {
         deserialize_with = "deserialize_ulid_id"
     )]
     pub id: MessageId,
+
+    #[serde(
+        serialize_with = "channel_serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
+    pub channel: ChannelId,
+
+    #[serde(
+        serialize_with = "user_serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
     pub author: UserId,
     pub content: String,
     // pub reactions: Vec<Reaction>,
@@ -32,10 +46,11 @@ pub struct DbMessage {
 pub enum Reaction {}
 
 impl DbMessage {
-    pub fn new(author: UserId, content: String) -> Self {
+    pub fn new(author: UserId, channel: ChannelId, content: String) -> Self {
         DbMessage {
             id: MessageId::new(),
             author,
+            channel,
             content,
             create_time: chrono::offset::Utc::now(),
             update_time: None,
@@ -46,7 +61,11 @@ impl DbMessage {
         let mut reactions = HashMap::new();
 
         Message {
-            name: format!("servers/{}", self.id.to_string()),
+            name: format!(
+                "channels/{}/messages/{}",
+                self.channel.to_string(),
+                self.id.to_string()
+            ),
             author: self.author.to_string(),
             content: self.content,
             reactions,

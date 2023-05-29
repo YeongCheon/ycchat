@@ -6,10 +6,12 @@ use surrealdb::{
 };
 
 use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
+use super::user::COLLECTION_NAME as USER_COLLECTION_NAME;
 use crate::{
     db::traits::server_member::ServerMemberRepository,
     models::server::ServerId,
     models::server_member::{DbServerMember, ServerMemberId},
+    models::user::UserId,
 };
 
 use super::conn;
@@ -51,7 +53,6 @@ impl ServerMemberRepository for ServerMemberRepositoryImpl {
             .content(server_member)
             .await
             .unwrap();
-        dbg!(&created);
 
         Ok(created)
     }
@@ -70,7 +71,7 @@ impl ServerMemberRepository for ServerMemberRepositoryImpl {
         return Ok(res.unwrap());
     }
 
-    async fn delete_server(&self, id: &ServerMemberId) -> Result<u8, String> {
+    async fn delete(&self, id: &ServerMemberId) -> Result<u8, String> {
         self.db
             .delete::<Option<DbServerMember>>((COLLECTION_NAME, id.to_string()))
             .await
@@ -106,6 +107,38 @@ impl ServerMemberRepository for ServerMemberRepositoryImpl {
             .await
             .unwrap()
             .take::<Vec<DbServerMember>>(0);
+
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    async fn get_server_member_by_server_id_and_user_id(
+        &self,
+        server_id: &ServerId,
+        user_id: &UserId,
+    ) -> Result<Option<DbServerMember>, String> {
+        let server = Thing {
+            tb: SERVER_COLLECTION_NAME.to_string(),
+            id: Id::String(server_id.to_string()),
+        };
+
+        let user = Thing {
+            tb: USER_COLLECTION_NAME.to_string(),
+            id: Id::String(user_id.to_string()),
+        };
+
+        let res = self
+            .db
+            .query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE server == $server AND user == $user"
+            ))
+            .bind(("server", server))
+            .bind(("user", user))
+            .await
+            .unwrap()
+            .take::<Option<DbServerMember>>(0);
 
         match res {
             Ok(res) => Ok(res),

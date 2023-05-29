@@ -12,7 +12,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
 use tonic::{Response, Result, Status};
 
-use super::model::{Channel, Message};
+use super::model::Message;
 use super::ycchat_connect::server_signal::Payload;
 use super::ycchat_connect::{self, connect_server::Connect, ConnectResponse};
 use super::ycchat_connect::{ChannelReceiveMessage, Ping, ServerSignal};
@@ -79,10 +79,11 @@ where
     }
 
     async fn broadcast(&self, msg: &Message) {
-        let parent = &msg.name;
-        let parent_slice: Vec<&str> = parent.split('/').collect();
-        // let channel_id: ChannelId = parent_slice[1].to_string();
-        let channel_id = ChannelId::new(); // FIXME
+        let name = &msg.name;
+        // let parent_slice: Vec<&str> = parent.split('/').collect();
+        // let channel_id = ChannelId::from_string(parent_slice[1]);
+        let channel_id = ChannelId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+        // let channel_id = ChannelId::new(); // FIXME
 
         let channel: DbChannel = self
             .channel_repository
@@ -110,7 +111,7 @@ where
         for (user_id, tx) in &users {
             let is_contain = server_members
                 .iter()
-                .any(|server_member| server_member.server.id == server_id);
+                .any(|server_member| server_member.server == server_id);
 
             if !is_contain {
                 continue;

@@ -70,7 +70,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let server_server = server_server::ServerServer::with_interceptor(
-        services::server::ServerService::new(server_repository.clone()),
+        services::server::ServerService::new(
+            server_repository.clone(),
+            server_member_repository.clone(),
+        ),
         interceptor::auth::check_auth,
     );
 

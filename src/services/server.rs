@@ -1,38 +1,51 @@
 use tonic::{Request, Response, Result, Status};
 
 use crate::{
-    db::traits::server::ServerRepository,
-    models::server::{DbServer, ServerId},
+    db::{
+        surreal::server_member,
+        traits::{server::ServerRepository, server_member::ServerMemberRepository},
+    },
+    models::{
+        server::{DbServer, ServerId},
+        server_member::DbServerMember,
+        user::UserId,
+    },
 };
 
-use super::model::Server;
+use super::model::{Server, ServerMember};
 use super::ycchat_server::server_server::Server as ServerServer;
 use super::ycchat_server::{
-    CreateServerRequest, DeleteServerRequest, EnterServerRequest, EnterServerResponse,
-    GetServerRequest, LeaveServerRequest, ListServersRequest, ListServersResponse,
-    UpdateServerRequest,
+    CreateServerRequest, DeleteServerRequest, EnterServerRequest, GetServerRequest,
+    LeaveServerRequest, ListServersRequest, ListServersResponse, UpdateServerRequest,
 };
 
-pub struct ServerService<U>
+pub struct ServerService<U, M>
 where
     U: ServerRepository,
+    M: ServerMemberRepository,
 {
     server_repository: U,
+    server_member_repository: M,
 }
 
-impl<U> ServerService<U>
+impl<U, M> ServerService<U, M>
 where
     U: ServerRepository,
+    M: ServerMemberRepository,
 {
-    pub fn new(server_repository: U) -> Self {
-        ServerService { server_repository }
+    pub fn new(server_repository: U, server_member_repository: M) -> Self {
+        ServerService {
+            server_repository,
+            server_member_repository,
+        }
     }
 }
 
 #[tonic::async_trait]
-impl<U> ServerServer for ServerService<U>
+impl<U, M> ServerServer for ServerService<U, M>
 where
     U: ServerRepository + 'static,
+    M: ServerMemberRepository + 'static,
 {
     async fn list_servers(
         &self,
@@ -123,14 +136,69 @@ where
     async fn enter_server(
         &self,
         request: Request<EnterServerRequest>,
-    ) -> Result<Response<EnterServerResponse>, Status> {
-        todo!("not implemented yet.");
+    ) -> Result<Response<ServerMember>, Status> {
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
+
+        let req = request.into_inner();
+        let name = req.name;
+        let display_name = req.display_name;
+        let description = req.description;
+
+        let server_id = ServerId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+
+        {
+            // check exist
+            let exist = self
+                .server_member_repository
+                .get_server_member_by_server_id_and_user_id(&server_id, &user_id)
+                .await
+                .unwrap();
+
+            if exist.is_some() {
+                return Err(Status::already_exists("already exist."));
+            }
+        }
+
+        let server_member = DbServerMember::new(display_name, description, server_id, user_id);
+
+        let server_member = self
+            .server_member_repository
+            .add_server_member(&server_member)
+            .await
+            .unwrap();
+
+        Ok(Response::new(server_member.to_message()))
     }
 
     async fn leave_server(
         &self,
         request: Request<LeaveServerRequest>,
     ) -> Result<Response<()>, Status> {
-        todo!("not implemented yet.");
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(user_id).unwrap();
+
+        let req = request.into_inner();
+        let name = req.name;
+
+        let server_id = ServerId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+
+        let exist = self
+            .server_member_repository
+            .get_server_member_by_server_id_and_user_id(&server_id, &user_id)
+            .await
+            .unwrap();
+
+        match exist {
+            Some(exist) => {
+                self.server_member_repository
+                    .delete(&exist.id)
+                    .await
+                    .unwrap();
+            }
+            None => return Err(Status::not_found("not found.")),
+        }
+
+        Ok(Response::new(()))
     }
 }

@@ -16,7 +16,7 @@ impl UserRepositoryImpl {
     }
 }
 
-const COLLECTION_NAME: &str = "user";
+pub const COLLECTION_NAME: &str = "user";
 
 #[async_trait]
 impl UserRepository for UserRepositoryImpl {

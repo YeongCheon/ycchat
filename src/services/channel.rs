@@ -181,7 +181,7 @@ where
 
         let mut exist = match channel_index {
             Some(idx) => {
-                let channel_id = ChannelId::from_string(&name[idx]).unwrap();
+                let channel_id = ChannelId::from_string(name[idx]).unwrap();
 
                 match self.channel_repository.get(&channel_id).await {
                     Ok(channel) => match channel {
@@ -215,7 +215,7 @@ where
             .map(|idx| idx + 1);
 
         let channel_id: ChannelId = match channel_index {
-            Some(idx) => ChannelId::from_string(&name[idx]).unwrap(),
+            Some(idx) => ChannelId::from_string(name[idx]).unwrap(),
             None => return Err(Status::invalid_argument("invalid arguments.")),
         };
 
@@ -236,7 +236,7 @@ where
         request: Request<SpeechRequest>,
     ) -> Result<Response<SpeechResponse>, Status> {
         let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
-        let user_id = UserId::from_string(&user_id).unwrap();
+        let user_id = UserId::from_string(user_id).unwrap();
 
         let req = request.into_inner();
         let name = req.name;
@@ -244,7 +244,7 @@ where
 
         let channel_id = ChannelId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
 
-        let message = DbMessage::new(user_id, content);
+        let message = DbMessage::new(user_id, channel_id, content);
 
         let message = self.message_repository.add(&message).await.unwrap();
         let message = message.to_message();
