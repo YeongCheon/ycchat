@@ -16,6 +16,10 @@ pub mod ycchat_connect {
     tonic::include_proto!("ycchat.connect");
 }
 
+pub mod ycchat_message {
+    tonic::include_proto!("ycchat.message");
+}
+
 pub mod ycchat_account {
     tonic::include_proto!("ycchat.account");
 }

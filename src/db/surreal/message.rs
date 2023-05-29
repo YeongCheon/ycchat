@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-const COLLECTION_NAME: &str = "message";
+pub const COLLECTION_NAME: &str = "message";
 
 use super::conn;
 
@@ -27,6 +27,24 @@ impl MessageRepositoryImpl {
 
 #[async_trait]
 impl MessageRepository for MessageRepositoryImpl {
+    async fn get(&self, id: &MessageId) -> Result<Option<DbMessage>, String> {
+        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    async fn delete(&self, id: &MessageId) -> Result<u8, String> {
+        self.db
+            .delete::<Option<DbMessage>>((COLLECTION_NAME, id.to_string()))
+            .await
+            .unwrap();
+
+        Ok(1)
+    }
+
     async fn add(&self, message: &DbMessage) -> Result<DbMessage, String> {
         let created: DbMessage = self
             .db

@@ -1,12 +1,4 @@
-use std::collections::HashMap;
-
-use chrono::{DateTime, Timelike, Utc};
-use prost_types::Timestamp;
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
-
-pub type MessageId = Ulid;
-
+use super::{channel::ChannelId, user::UserId};
 use crate::{
     db::surreal::{
         channel::serialize_id as channel_serialize_id, deserialize_ulid_id, message::serialize_id,
@@ -14,8 +6,13 @@ use crate::{
     },
     services::model::Message,
 };
+use chrono::{DateTime, Timelike, Utc};
+use prost_types::Timestamp;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use ulid::Ulid;
 
-use super::{channel::ChannelId, user::UserId};
+pub type MessageId = Ulid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbMessage {
