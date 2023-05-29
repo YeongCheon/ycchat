@@ -1,8 +1,8 @@
 use db::{
     surreal::{
-        auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, server::ServerRepositoryImpl,
-        server_category::ServerCategoryRepositoryImpl, server_member::ServerMemberRepositoryImpl,
-        user::UserRepositoryImpl,
+        auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, message::MessageRepositoryImpl,
+        server::ServerRepositoryImpl, server_category::ServerCategoryRepositoryImpl,
+        server_member::ServerMemberRepositoryImpl, user::UserRepositoryImpl,
     },
     traits::auth::AuthRepository,
 };
@@ -45,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_category_repository = ServerCategoryRepositoryImpl::new().await;
     let server_member_repository = ServerMemberRepositoryImpl::new().await;
     let channel_repository = ChannelRepositoryImpl::new().await;
+    let message_repository = MessageRepositoryImpl::new().await;
 
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
 
@@ -88,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let channel_server = channel_server::ChannelServer::with_interceptor(
         services::channel::ChannelService::new(
+            message_repository,
             channel_repository,
             server_repository,
             server_category_repository,

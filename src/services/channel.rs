@@ -3,12 +3,15 @@ use std::str::FromStr;
 use tonic::{Request, Response, Status};
 
 use crate::db::traits::channel::ChannelRepository;
+use crate::db::traits::message::MessageRepository;
 use crate::db::traits::server::ServerRepository;
 use crate::db::traits::server_category::ServerCategoryRepository;
 use crate::models::channel::{ChannelId, DbChannel};
+use crate::models::message::DbMessage;
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
 use crate::models::user::UserId;
+use crate::redis::RedisClient;
 
 use super::model::Channel as ChannelModel;
 use super::ycchat_channel::channel_server::Channel;
@@ -19,39 +22,49 @@ use super::ycchat_channel::{
     UpdateChannelRequest,
 };
 
-pub struct ChannelService<C, S, SC>
+pub struct ChannelService<M, C, S, SC>
 where
+    M: MessageRepository,
     C: ChannelRepository,
     S: ServerRepository,
     SC: ServerCategoryRepository,
 {
+    message_repository: M,
     channel_repository: C,
     server_repository: S,
     server_category_repository: SC,
+    redis_client: RedisClient,
 }
 
-impl<C, S, SC> ChannelService<C, S, SC>
+impl<M, C, S, SC> ChannelService<M, C, S, SC>
 where
+    M: MessageRepository,
     C: ChannelRepository,
     S: ServerRepository,
     SC: ServerCategoryRepository,
 {
     pub fn new(
+        message_repository: M,
         channel_repository: C,
         server_repository: S,
         server_category_repository: SC,
     ) -> Self {
+        let redis_client = RedisClient::new();
+
         ChannelService {
+            message_repository,
             channel_repository,
             server_repository,
             server_category_repository,
+            redis_client,
         }
     }
 }
 
 #[tonic::async_trait]
-impl<C, S, SC> Channel for ChannelService<C, S, SC>
+impl<M, C, S, SC> Channel for ChannelService<M, C, S, SC>
 where
+    M: MessageRepository + 'static,
     C: ChannelRepository + 'static,
     S: ServerRepository + 'static,
     SC: ServerCategoryRepository + 'static,
@@ -222,6 +235,24 @@ where
         &self,
         request: Request<SpeechRequest>,
     ) -> Result<Response<SpeechResponse>, Status> {
-        todo!()
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
+
+        let req = request.into_inner();
+        let name = req.name;
+        let content = req.content;
+
+        let channel_id = ChannelId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+
+        let message = DbMessage::new(user_id, content);
+
+        let message = self.message_repository.add(&message).await.unwrap();
+        let message = message.to_message();
+
+        self.redis_client.chat_publish(&message).unwrap();
+
+        Ok(Response::new(SpeechResponse {
+            result: Some(message),
+        }))
     }
 }
