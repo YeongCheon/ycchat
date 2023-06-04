@@ -95,12 +95,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let server_member_server = server_member_server::ServerMemberServer::with_interceptor(
-        services::server_member::ServerMemberService::new(server_member_repository),
+        services::server_member::ServerMemberService::new(server_member_repository.clone()),
         interceptor::auth::check_auth,
     );
 
     let channel_server = channel_server::ChannelServer::with_interceptor(
         services::channel::ChannelService::new(
+            server_member_repository,
             message_repository,
             channel_repository,
             server_repository,
