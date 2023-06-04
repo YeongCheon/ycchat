@@ -6,7 +6,8 @@ use crate::db::traits::channel::ChannelRepository;
 use crate::db::traits::message::MessageRepository;
 use crate::db::traits::server::ServerRepository;
 use crate::db::traits::server_category::ServerCategoryRepository;
-use crate::models::channel::{ChannelId, DbChannel};
+use crate::db::traits::server_member::ServerMemberRepository;
+use crate::models::channel::{ChannelId, ChannelType, DbChannel};
 use crate::models::message::DbMessage;
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
@@ -22,13 +23,15 @@ use super::ycchat_channel::{
     UpdateChannelRequest,
 };
 
-pub struct ChannelService<M, C, S, SC>
+pub struct ChannelService<SM, M, C, S, SC>
 where
+    SM: ServerMemberRepository,
     M: MessageRepository,
     C: ChannelRepository,
     S: ServerRepository,
     SC: ServerCategoryRepository,
 {
+    server_member_repository: SM,
     message_repository: M,
     channel_repository: C,
     server_repository: S,
@@ -36,14 +39,16 @@ where
     redis_client: RedisClient,
 }
 
-impl<M, C, S, SC> ChannelService<M, C, S, SC>
+impl<SM, M, C, S, SC> ChannelService<SM, M, C, S, SC>
 where
+    SM: ServerMemberRepository,
     M: MessageRepository,
     C: ChannelRepository,
     S: ServerRepository,
     SC: ServerCategoryRepository,
 {
     pub fn new(
+        server_member_repository: SM,
         message_repository: M,
         channel_repository: C,
         server_repository: S,
@@ -52,6 +57,7 @@ where
         let redis_client = RedisClient::new();
 
         ChannelService {
+            server_member_repository,
             message_repository,
             channel_repository,
             server_repository,
@@ -62,8 +68,9 @@ where
 }
 
 #[tonic::async_trait]
-impl<M, C, S, SC> Channel for ChannelService<M, C, S, SC>
+impl<SM, M, C, S, SC> Channel for ChannelService<SM, M, C, S, SC>
 where
+    SM: ServerMemberRepository + 'static,
     M: MessageRepository + 'static,
     C: ChannelRepository + 'static,
     S: ServerRepository + 'static,
@@ -243,6 +250,28 @@ where
         let content = req.content;
 
         let channel_id = ChannelId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+        let channel = match self.channel_repository.get(&channel_id).await.unwrap() {
+            Some(channel) => channel,
+            None => return Err(Status::not_found("invalid arguments.")),
+        };
+
+        let is_have_permission: bool = match channel.channel_type {
+            ChannelType::Saved { owner } => owner == user_id,
+            ChannelType::Direct => todo!(),
+            ChannelType::Server { server } => {
+                let server_member = self
+                    .server_member_repository
+                    .get_server_member_by_server_id_and_user_id(&server, &user_id)
+                    .await
+                    .unwrap();
+
+                server_member.is_some()
+            }
+        };
+
+        if !is_have_permission {
+            return Err(Status::permission_denied("permission denied."));
+        }
 
         let message = DbMessage::new(user_id, channel_id, content);
 
