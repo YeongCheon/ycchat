@@ -1,12 +1,12 @@
 // pub mod attachment;
 pub mod auth;
 pub mod channel;
+pub mod message;
+pub mod message_acknowledge;
 pub mod server;
 pub mod server_category;
 pub mod server_member;
 pub mod user;
-
-use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer};
 use surrealdb::{
@@ -17,7 +17,7 @@ use surrealdb::{
 };
 use ulid::Ulid;
 
-async fn conn() -> Surreal<Client> {
+pub async fn conn() -> Surreal<Client> {
     let db = Surreal::new::<Ws>("127.0.0.1:8000").await.unwrap();
 
     db.signin(Root {

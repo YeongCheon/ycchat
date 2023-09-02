@@ -1,5 +1,8 @@
+use surrealdb::engine::remote::ws::Client;
+use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 
+use crate::db::surreal::conn;
 use crate::db::traits::server_member::ServerMemberRepository;
 use crate::models::server::ServerId;
 use crate::models::server_member::ServerMemberId;
@@ -13,14 +16,14 @@ use super::ycchat_server::member::{
 
 pub struct ServerMemberService<U>
 where
-    U: ServerMemberRepository,
+    U: ServerMemberRepository<Surreal<Client>>,
 {
     server_member_repository: U,
 }
 
 impl<U> ServerMemberService<U>
 where
-    U: ServerMemberRepository,
+    U: ServerMemberRepository<Surreal<Client>>,
 {
     pub fn new(server_member_repository: U) -> Self {
         ServerMemberService {
@@ -32,15 +35,17 @@ where
 #[tonic::async_trait]
 impl<U> ServerMemberServer for ServerMemberService<U>
 where
-    U: ServerMemberRepository + 'static,
+    U: ServerMemberRepository<Surreal<Client>> + 'static,
 {
     async fn list_server_members(
         &self,
         request: Request<ListServerMembersRequest>,
     ) -> Result<Response<ListServerMembersResponse>, Status> {
+        let db = conn().await;
+
         let list = self
             .server_member_repository
-            .get_server_members()
+            .get_server_members(&db)
             .await
             .unwrap();
 
@@ -59,6 +64,8 @@ where
         &self,
         request: Request<GetServerMemberRequest>,
     ) -> Result<Response<ServerMember>, Status> {
+        let db = conn().await;
+
         let user_id = request
             .metadata()
             .get("user_id")
@@ -76,7 +83,7 @@ where
 
         let server_member = self
             .server_member_repository
-            .get_server_member(&server_member_id)
+            .get_server_member(&db, &server_member_id)
             .await
             .unwrap();
 

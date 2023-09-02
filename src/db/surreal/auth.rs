@@ -6,25 +6,21 @@ use crate::{
     models::{auth::DbAuth, user::UserId},
 };
 
-use super::conn;
-
 #[derive(Clone)]
-pub struct AuthRepositoryImpl {
-    db: Surreal<Client>,
-}
+pub struct AuthRepositoryImpl {}
 
 impl AuthRepositoryImpl {
     pub async fn new() -> Self {
-        AuthRepositoryImpl { db: conn().await }
+        AuthRepositoryImpl {}
     }
 }
 
 const COLLECTION_NAME: &str = "auth";
 
 #[tonic::async_trait]
-impl AuthRepository for AuthRepositoryImpl {
-    async fn get(&self, id: &UserId) -> Result<Option<DbAuth>, String> {
-        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+impl AuthRepository<Surreal<Client>> for AuthRepositoryImpl {
+    async fn get(&self, db: &Surreal<Client>, id: &UserId) -> Result<Option<DbAuth>, String> {
+        let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
@@ -32,9 +28,12 @@ impl AuthRepository for AuthRepositoryImpl {
         }
     }
 
-    async fn get_by_username(&self, username: &str) -> Result<Option<DbAuth>, String> {
-        let mut res = self
-            .db
+    async fn get_by_username(
+        &self,
+        db: &Surreal<Client>,
+        username: &str,
+    ) -> Result<Option<DbAuth>, String> {
+        let mut res = db
             .query(format!(
                 "SELECT * FROM {COLLECTION_NAME} WHERE username = $username"
             ))
@@ -45,9 +44,12 @@ impl AuthRepository for AuthRepositoryImpl {
         Ok(res.take::<Option<DbAuth>>(0).unwrap())
     }
 
-    async fn add(&self, auth: &DbAuth) -> Result<crate::models::auth::DbAuth, String> {
-        let created: DbAuth = self
-            .db
+    async fn add(
+        &self,
+        db: &Surreal<Client>,
+        auth: &DbAuth,
+    ) -> Result<crate::models::auth::DbAuth, String> {
+        let created: DbAuth = db
             .create((COLLECTION_NAME, auth.id.to_string()))
             .content(auth)
             .await
@@ -56,9 +58,8 @@ impl AuthRepository for AuthRepositoryImpl {
         Ok(created)
     }
 
-    async fn update(&self, auth: &DbAuth) -> Result<DbAuth, String> {
-        let res: Option<DbAuth> = self
-            .db
+    async fn update(&self, db: &Surreal<Client>, auth: &DbAuth) -> Result<DbAuth, String> {
+        let res: Option<DbAuth> = db
             .update((COLLECTION_NAME, auth.id.to_string()))
             .content(auth.clone())
             .await
@@ -67,9 +68,8 @@ impl AuthRepository for AuthRepositoryImpl {
         return Ok(res.unwrap());
     }
 
-    async fn delete(&self, id: &UserId) -> Result<u8, String> {
-        self.db
-            .delete::<Option<DbAuth>>((COLLECTION_NAME, id.to_string()))
+    async fn delete(&self, db: &Surreal<Client>, id: &UserId) -> Result<u8, String> {
+        db.delete::<Option<DbAuth>>((COLLECTION_NAME, id.to_string()))
             .await
             .unwrap();
 

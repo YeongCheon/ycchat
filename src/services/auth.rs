@@ -1,10 +1,13 @@
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use surrealdb::engine::remote::ws::Client;
+use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 use ulid::Ulid;
 
 use crate::auth::jwt::{decode, generate_access_token, generate_refresh_token};
+use crate::db::surreal::conn;
 use crate::db::traits::auth::AuthRepository;
 use crate::models::auth::DbAuth;
 use crate::models::user::UserId;
@@ -18,7 +21,7 @@ use super::ycchat_auth::{
 
 pub struct AuthService<U>
 where
-    U: AuthRepository,
+    U: AuthRepository<Surreal<Client>>,
 {
     redis_client: RedisClient,
     auth_repository: U,
@@ -26,7 +29,7 @@ where
 
 impl<U> AuthService<U>
 where
-    U: AuthRepository,
+    U: AuthRepository<Surreal<Client>>,
 {
     pub fn new(auth_repository: U) -> Self {
         let redis_client = RedisClient::new();
@@ -52,17 +55,19 @@ where
 #[tonic::async_trait]
 impl<U> Auth for AuthService<U>
 where
-    U: AuthRepository + 'static,
+    U: AuthRepository<Surreal<Client>> + 'static,
 {
     async fn sign_up(
         &self,
         request: Request<SignUpRequest>,
     ) -> Result<Response<SignUpResponse>, Status> {
+        let db = conn().await;
+
         let req = request.into_inner();
 
         let exist = self
             .auth_repository
-            .get_by_username(&req.username)
+            .get_by_username(&db, &req.username)
             .await
             .unwrap();
 
@@ -83,16 +88,19 @@ where
 
         let res = self
             .auth_repository
-            .add(&DbAuth {
-                id: user_id.clone(),
-                username: req.username,
-                password: hashed_password,
-                email: None,
-                is_email_verified: false,
-                create_time: chrono::offset::Utc::now(),
-                update_time: None,
-                last_login_time: None,
-            })
+            .add(
+                &db,
+                &DbAuth {
+                    id: user_id.clone(),
+                    username: req.username,
+                    password: hashed_password,
+                    email: None,
+                    is_email_verified: false,
+                    create_time: chrono::offset::Utc::now(),
+                    update_time: None,
+                    last_login_time: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -113,11 +121,13 @@ where
         &self,
         request: Request<SignInRequest>,
     ) -> Result<Response<SignInResponse>, Status> {
+        let db = conn().await;
+
         let req = request.into_inner();
         let username = &req.username;
         let password = &req.password;
 
-        let auth = match self.auth_repository.get_by_username(username).await {
+        let auth = match self.auth_repository.get_by_username(&db, username).await {
             Ok(res) => res,
             Err(err) => return Err(Status::invalid_argument(err)),
         };
@@ -136,7 +146,7 @@ where
             .is_ok());
 
         auth.last_login_time = Some(chrono::offset::Utc::now());
-        self.auth_repository.update(&auth).await.unwrap();
+        self.auth_repository.update(&db, &auth).await.unwrap();
 
         let user_id = auth.id;
 

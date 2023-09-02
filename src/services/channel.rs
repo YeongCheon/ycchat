@@ -1,13 +1,21 @@
 use std::str::FromStr;
 
+use surrealdb::engine::remote::ws::Client;
+use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 
+use crate::db::surreal::conn;
 use crate::db::traits::channel::ChannelRepository;
+use crate::db::traits::message::MessageRepository;
 use crate::db::traits::server::ServerRepository;
 use crate::db::traits::server_category::ServerCategoryRepository;
-use crate::models::channel::{ChannelId, DbChannel};
+use crate::db::traits::server_member::ServerMemberRepository;
+use crate::models::channel::{ChannelId, ChannelType, DbChannel};
+use crate::models::message::DbMessage;
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
+use crate::models::user::UserId;
+use crate::redis::RedisClient;
 
 use super::model::Channel as ChannelModel;
 use super::ycchat_channel::channel_server::Channel;
@@ -18,47 +26,65 @@ use super::ycchat_channel::{
     UpdateChannelRequest,
 };
 
-pub struct ChannelService<C, S, SC>
+pub struct ChannelService<SM, M, C, S, SC>
 where
-    C: ChannelRepository,
-    S: ServerRepository,
-    SC: ServerCategoryRepository,
+    SM: ServerMemberRepository<Surreal<Client>>,
+    M: MessageRepository<Surreal<Client>>,
+    C: ChannelRepository<Surreal<Client>>,
+    S: ServerRepository<Surreal<Client>>,
+    SC: ServerCategoryRepository<Surreal<Client>>,
 {
+    server_member_repository: SM,
+    message_repository: M,
     channel_repository: C,
     server_repository: S,
     server_category_repository: SC,
+    redis_client: RedisClient,
 }
 
-impl<C, S, SC> ChannelService<C, S, SC>
+impl<SM, M, C, S, SC> ChannelService<SM, M, C, S, SC>
 where
-    C: ChannelRepository,
-    S: ServerRepository,
-    SC: ServerCategoryRepository,
+    SM: ServerMemberRepository<Surreal<Client>>,
+    M: MessageRepository<Surreal<Client>>,
+    C: ChannelRepository<Surreal<Client>>,
+    S: ServerRepository<Surreal<Client>>,
+    SC: ServerCategoryRepository<Surreal<Client>>,
 {
     pub fn new(
+        server_member_repository: SM,
+        message_repository: M,
         channel_repository: C,
         server_repository: S,
         server_category_repository: SC,
     ) -> Self {
+        let redis_client = RedisClient::new();
+
         ChannelService {
+            server_member_repository,
+            message_repository,
             channel_repository,
             server_repository,
             server_category_repository,
+            redis_client,
         }
     }
 }
 
 #[tonic::async_trait]
-impl<C, S, SC> Channel for ChannelService<C, S, SC>
+impl<SM, M, C, S, SC> Channel for ChannelService<SM, M, C, S, SC>
 where
-    C: ChannelRepository + 'static,
-    S: ServerRepository + 'static,
-    SC: ServerCategoryRepository + 'static,
+    SM: ServerMemberRepository<Surreal<Client>> + 'static,
+    M: MessageRepository<Surreal<Client>> + 'static,
+    C: ChannelRepository<Surreal<Client>> + 'static,
+    S: ServerRepository<Surreal<Client>> + 'static,
+    SC: ServerCategoryRepository<Surreal<Client>> + 'static,
 {
     async fn list_server_channels(
         &self,
         request: Request<ListServerChannelsRequest>,
     ) -> Result<Response<ListServerChannelsResponse>, Status> {
+        let db = conn().await;
+
         let parent = request.into_inner().parent;
 
         let parent = parent.split('/').collect::<Vec<&str>>();
@@ -66,7 +92,7 @@ where
 
         let channels = self
             .channel_repository
-            .get_server_channels(&server_id)
+            .get_server_channels(&db, &server_id)
             .await
             .unwrap()
             .into_iter()
@@ -83,6 +109,11 @@ where
         &self,
         request: Request<CreateChannelRequest>,
     ) -> Result<Response<ChannelModel>, Status> {
+        let db = conn().await;
+
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
+
         let channel = match request.into_inner().channel {
             Some(channel) => channel,
             None => return Err(Status::invalid_argument("invalid arguments")),
@@ -102,7 +133,7 @@ where
             Some(idx) => {
                 let server_id: ServerId = ServerId::from_str(name_list[idx]).unwrap();
 
-                let server = self.server_repository.get_server(&server_id).await;
+                let server = self.server_repository.get_server(&db, &server_id).await;
 
                 match server {
                     Ok(server) => Some(server),
@@ -114,12 +145,14 @@ where
 
         let category: Option<DbServerCategory> = match category_index {
             Some(idx) => {
+                let db = conn().await;
+
                 let server_category_id: ServerCategoryId =
                     ServerCategoryId::from_str(name_list[idx]).unwrap();
 
                 let category = self
                     .server_category_repository
-                    .get(&server_category_id)
+                    .get(&db, &server_category_id)
                     .await;
 
                 match category {
@@ -133,9 +166,9 @@ where
             None => None,
         };
 
-        let channel = DbChannel::new(channel, server, category);
+        let channel = DbChannel::new(user_id, channel, server.map(|server| server.id));
 
-        let added = self.channel_repository.add(&channel).await.unwrap();
+        let added = self.channel_repository.add(&db, &channel).await.unwrap();
 
         Ok(Response::new(added.to_message()))
     }
@@ -151,6 +184,8 @@ where
         &self,
         request: Request<UpdateChannelRequest>,
     ) -> Result<Response<ChannelModel>, Status> {
+        let db = conn().await;
+
         let req = request.into_inner();
         let channel = req.channel.unwrap();
 
@@ -164,9 +199,9 @@ where
 
         let mut exist = match channel_index {
             Some(idx) => {
-                let channel_id = ChannelId::from_string(&name[idx]).unwrap();
+                let channel_id = ChannelId::from_string(name[idx]).unwrap();
 
-                match self.channel_repository.get(&channel_id).await {
+                match self.channel_repository.get(&db, &channel_id).await {
                     Ok(channel) => match channel {
                         Some(channel) => channel,
                         None => return Err(Status::not_found("channel not found.")),
@@ -180,7 +215,7 @@ where
         exist.display_name = channel.display_name;
         exist.description = channel.description;
 
-        let res = self.channel_repository.update(&exist).await.unwrap();
+        let res = self.channel_repository.update(&db, &exist).await.unwrap();
 
         Ok(Response::new(res.to_message()))
     }
@@ -189,6 +224,8 @@ where
         &self,
         request: Request<DeleteChannelRequest>,
     ) -> Result<Response<()>, Status> {
+        let db = conn().await;
+
         let name = request.into_inner().name;
         let name = name.split('/').collect::<Vec<&str>>();
 
@@ -198,11 +235,14 @@ where
             .map(|idx| idx + 1);
 
         let channel_id: ChannelId = match channel_index {
-            Some(idx) => ChannelId::from_string(&name[idx]).unwrap(),
+            Some(idx) => ChannelId::from_string(name[idx]).unwrap(),
             None => return Err(Status::invalid_argument("invalid arguments.")),
         };
 
-        self.channel_repository.delete(&channel_id).await.unwrap();
+        self.channel_repository
+            .delete(&db, &channel_id)
+            .await
+            .unwrap();
 
         Ok(Response::new(()))
     }
@@ -218,6 +258,48 @@ where
         &self,
         request: Request<SpeechRequest>,
     ) -> Result<Response<SpeechResponse>, Status> {
-        todo!()
+        let db = conn().await;
+
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(user_id).unwrap();
+
+        let req = request.into_inner();
+        let name = req.name;
+        let content = req.content;
+
+        let channel_id = ChannelId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
+        let channel = match self.channel_repository.get(&db, &channel_id).await.unwrap() {
+            Some(channel) => channel,
+            None => return Err(Status::not_found("invalid arguments.")),
+        };
+
+        let is_have_permission: bool = match channel.channel_type {
+            ChannelType::Saved { owner } => owner == user_id,
+            ChannelType::Direct => todo!(),
+            ChannelType::Server { server } => {
+                let server_member = self
+                    .server_member_repository
+                    .get_server_member_by_server_id_and_user_id(&db, &server, &user_id)
+                    .await
+                    .unwrap();
+
+                server_member.is_some()
+            }
+        };
+
+        if !is_have_permission {
+            return Err(Status::permission_denied("permission denied."));
+        }
+
+        let message = DbMessage::new(user_id, channel_id, content);
+
+        let message = self.message_repository.add(&db, &message).await.unwrap();
+        let message = message.to_message();
+
+        self.redis_client.chat_publish(&message).unwrap();
+
+        Ok(Response::new(SpeechResponse {
+            result: Some(message),
+        }))
     }
 }

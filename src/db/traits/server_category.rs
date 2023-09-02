@@ -4,17 +4,26 @@ use crate::models::{
 };
 
 #[tonic::async_trait]
-pub trait ServerCategoryRepository: Sync + Send {
-    async fn get(&self, id: &ServerCategoryId) -> Result<Option<DbServerCategory>, String>;
+pub trait ServerCategoryRepository<C>: Sync + Send {
+    async fn get(&self, db: &C, id: &ServerCategoryId) -> Result<Option<DbServerCategory>, String>;
 
-    async fn add(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String>;
+    async fn add(
+        &self,
+        db: &C,
+        server_category: &DbServerCategory,
+    ) -> Result<DbServerCategory, String>;
 
-    async fn update(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String>;
+    async fn update(
+        &self,
+        db: &C,
+        server_category: &DbServerCategory,
+    ) -> Result<DbServerCategory, String>;
 
-    async fn delete(&self, id: &ServerCategoryId) -> Result<u8, String>;
+    async fn delete(&self, db: &C, id: &ServerCategoryId) -> Result<u8, String>;
 
     async fn get_server_categories(
         &self,
+        db: &C,
         server_id: &ServerId,
     ) -> Result<Vec<DbServerCategory>, String>; // FIXME
 }

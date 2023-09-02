@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "protobuf/message/reaction.proto",
             "protobuf/auth/auth.proto",
             "protobuf/account/account.proto",
+            "protobuf/connect/connect.proto",
         ],
         &["protobuf"],
     )?;
