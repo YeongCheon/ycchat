@@ -18,20 +18,22 @@ use super::conn;
 pub const COLLECTION_NAME: &str = "server_category";
 
 #[derive(Clone)]
-pub struct ServerCategoryRepositoryImpl {
-    db: Surreal<Client>,
-}
+pub struct ServerCategoryRepositoryImpl {}
 
 impl ServerCategoryRepositoryImpl {
     pub async fn new() -> Self {
-        ServerCategoryRepositoryImpl { db: conn().await }
+        ServerCategoryRepositoryImpl {}
     }
 }
 
 #[tonic::async_trait]
-impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
-    async fn get(&self, id: &ServerCategoryId) -> Result<Option<DbServerCategory>, String> {
-        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl {
+    async fn get(
+        &self,
+        db: &Surreal<Client>,
+        id: &ServerCategoryId,
+    ) -> Result<Option<DbServerCategory>, String> {
+        let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
@@ -39,9 +41,12 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         }
     }
 
-    async fn add(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String> {
-        let created: DbServerCategory = self
-            .db
+    async fn add(
+        &self,
+        db: &Surreal<Client>,
+        server_category: &DbServerCategory,
+    ) -> Result<DbServerCategory, String> {
+        let created: DbServerCategory = db
             .create((COLLECTION_NAME, server_category.id.to_string()))
             .content(server_category)
             .await
@@ -50,9 +55,12 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         Ok(created)
     }
 
-    async fn update(&self, server_category: &DbServerCategory) -> Result<DbServerCategory, String> {
-        let res: Option<DbServerCategory> = self
-            .db
+    async fn update(
+        &self,
+        db: &Surreal<Client>,
+        server_category: &DbServerCategory,
+    ) -> Result<DbServerCategory, String> {
+        let res: Option<DbServerCategory> = db
             .update((COLLECTION_NAME, server_category.id.to_string()))
             .content(server_category.clone())
             .await
@@ -61,9 +69,8 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
         return Ok(res.unwrap());
     }
 
-    async fn delete(&self, id: &ServerCategoryId) -> Result<u8, String> {
-        self.db
-            .delete::<Option<DbServerCategory>>((COLLECTION_NAME, id.to_string()))
+    async fn delete(&self, db: &Surreal<Client>, id: &ServerCategoryId) -> Result<u8, String> {
+        db.delete::<Option<DbServerCategory>>((COLLECTION_NAME, id.to_string()))
             .await
             .unwrap();
 
@@ -72,6 +79,7 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
 
     async fn get_server_categories(
         &self,
+        db: &Surreal<Client>,
         server_id: &ServerId,
     ) -> Result<Vec<DbServerCategory>, String> {
         let server = Thing {
@@ -79,8 +87,7 @@ impl ServerCategoryRepository for ServerCategoryRepositoryImpl {
             id: Id::String(server_id.to_string()),
         };
 
-        let res = self
-            .db
+        let res = db
             .query(format!(
                 "SELECT * FROM {COLLECTION_NAME} WHERE server_id == $server"
             ))

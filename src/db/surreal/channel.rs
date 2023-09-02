@@ -18,20 +18,18 @@ use super::conn;
 const COLLECTION_NAME: &str = "channel";
 
 #[derive(Clone)]
-pub struct ChannelRepositoryImpl {
-    db: Surreal<Client>,
-}
+pub struct ChannelRepositoryImpl {}
 
 impl ChannelRepositoryImpl {
     pub async fn new() -> Self {
-        ChannelRepositoryImpl { db: conn().await }
+        ChannelRepositoryImpl {}
     }
 }
 
 #[tonic::async_trait]
-impl ChannelRepository for ChannelRepositoryImpl {
-    async fn get(&self, id: &ChannelId) -> Result<Option<DbChannel>, String> {
-        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+impl ChannelRepository<Surreal<Client>> for ChannelRepositoryImpl {
+    async fn get(&self, db: &Surreal<Client>, id: &ChannelId) -> Result<Option<DbChannel>, String> {
+        let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
@@ -39,14 +37,17 @@ impl ChannelRepository for ChannelRepositoryImpl {
         }
     }
 
-    async fn get_server_channels(&self, server_id: &ServerId) -> Result<Vec<DbChannel>, String> {
+    async fn get_server_channels(
+        &self,
+        db: &Surreal<Client>,
+        server_id: &ServerId,
+    ) -> Result<Vec<DbChannel>, String> {
         let server = Thing {
             tb: SERVER_COLLECTION_NAME.to_string(),
             id: Id::String(server_id.to_string()),
         };
 
-        let res = self
-            .db
+        let res = db
             .query(format!(
                 "SELECT * FROM {COLLECTION_NAME} WHERE server == $server"
             ))
@@ -61,9 +62,8 @@ impl ChannelRepository for ChannelRepositoryImpl {
         }
     }
 
-    async fn add(&self, channel: &DbChannel) -> Result<DbChannel, String> {
-        let created: DbChannel = self
-            .db
+    async fn add(&self, db: &Surreal<Client>, channel: &DbChannel) -> Result<DbChannel, String> {
+        let created: DbChannel = db
             .create((COLLECTION_NAME, channel.id.to_string()))
             .content(channel)
             .await
@@ -72,9 +72,8 @@ impl ChannelRepository for ChannelRepositoryImpl {
         Ok(created)
     }
 
-    async fn update(&self, channel: &DbChannel) -> Result<DbChannel, String> {
-        let res: Option<DbChannel> = self
-            .db
+    async fn update(&self, db: &Surreal<Client>, channel: &DbChannel) -> Result<DbChannel, String> {
+        let res: Option<DbChannel> = db
             .update((COLLECTION_NAME, channel.id.to_string()))
             .content(channel.clone())
             .await
@@ -83,9 +82,8 @@ impl ChannelRepository for ChannelRepositoryImpl {
         return Ok(res.unwrap());
     }
 
-    async fn delete(&self, id: &ChannelId) -> Result<u8, String> {
-        self.db
-            .delete::<Option<DbChannel>>((COLLECTION_NAME, id.to_string()))
+    async fn delete(&self, db: &Surreal<Client>, id: &ChannelId) -> Result<u8, String> {
+        db.delete::<Option<DbChannel>>((COLLECTION_NAME, id.to_string()))
             .await
             .unwrap();
 

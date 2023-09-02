@@ -1,7 +1,11 @@
+use surrealdb::{engine::remote::ws::Client, Surreal};
 use tonic::{Request, Response, Status};
 
 use crate::{
-    db::traits::{message::MessageRepository, message_acknowledge::MessageAcknowledgeRepository},
+    db::{
+        surreal::conn,
+        traits::{message::MessageRepository, message_acknowledge::MessageAcknowledgeRepository},
+    },
     models::{message::MessageId, message_acknowledge::DbMessageAcknowledge, user::UserId},
 };
 
@@ -15,8 +19,8 @@ use super::{
 
 pub struct MessageService<M, ACK>
 where
-    M: MessageRepository,
-    ACK: MessageAcknowledgeRepository,
+    M: MessageRepository<Surreal<Client>>,
+    ACK: MessageAcknowledgeRepository<Surreal<Client>>,
 {
     message_repository: M,
     message_acknowledge_repository: ACK,
@@ -24,8 +28,8 @@ where
 
 impl<M, ACK> MessageService<M, ACK>
 where
-    M: MessageRepository,
-    ACK: MessageAcknowledgeRepository,
+    M: MessageRepository<Surreal<Client>>,
+    ACK: MessageAcknowledgeRepository<Surreal<Client>>,
 {
     pub fn new(message_repository: M, message_acknowledge_repository: ACK) -> Self {
         MessageService {
@@ -38,13 +42,15 @@ where
 #[tonic::async_trait]
 impl<M, ACK> ProtoMessageService for MessageService<M, ACK>
 where
-    M: MessageRepository + 'static,
-    ACK: MessageAcknowledgeRepository + 'static,
+    M: MessageRepository<Surreal<Client>> + 'static,
+    ACK: MessageAcknowledgeRepository<Surreal<Client>> + 'static,
 {
     async fn acknowledge_message(
         &self,
         request: Request<AcknowledgeMessageRequest>,
     ) -> Result<Response<()>, Status> {
+        let db = conn().await;
+
         let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
         let user_id = UserId::from_string(&user_id).unwrap();
 
@@ -56,7 +62,7 @@ where
 
         let exist = self
             .message_acknowledge_repository
-            .get_by_message_and_user(&message_id, &user_id)
+            .get_by_message_and_user(&db, &message_id, &user_id)
             .await
             .unwrap();
 
@@ -65,7 +71,7 @@ where
         }
 
         self.message_acknowledge_repository
-            .add(&DbMessageAcknowledge::new(message_id, user_id))
+            .add(&db, &DbMessageAcknowledge::new(message_id, user_id))
             .await
             .unwrap();
 
@@ -83,6 +89,8 @@ where
         &self,
         request: Request<DeleteMessageRequest>,
     ) -> Result<Response<()>, Status> {
+        let db = conn().await;
+
         let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
         let user_id = UserId::from_string(&user_id).unwrap();
 
@@ -92,7 +100,7 @@ where
 
         let message_id = MessageId::from_string(name[1]).unwrap();
 
-        let exist = self.message_repository.get(&message_id).await.unwrap();
+        let exist = self.message_repository.get(&db, &message_id).await.unwrap();
 
         match exist {
             Some(exist) => {
@@ -103,7 +111,10 @@ where
             None => return Err(Status::not_found("message not found.")),
         }
 
-        self.message_repository.delete(&message_id).await.unwrap();
+        self.message_repository
+            .delete(&db, &message_id)
+            .await
+            .unwrap();
 
         Ok(Response::new(()))
     }

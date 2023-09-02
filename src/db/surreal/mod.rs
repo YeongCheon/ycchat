@@ -8,8 +8,6 @@ pub mod server_category;
 pub mod server_member;
 pub mod user;
 
-use std::str::FromStr;
-
 use serde::{Deserialize, Deserializer};
 use surrealdb::{
     engine::remote::ws::{Client, Ws},
@@ -19,7 +17,7 @@ use surrealdb::{
 };
 use ulid::Ulid;
 
-async fn conn() -> Surreal<Client> {
+pub async fn conn() -> Surreal<Client> {
     let db = Surreal::new::<Ws>("127.0.0.1:8000").await.unwrap();
 
     db.signin(Root {

@@ -15,20 +15,18 @@ pub const COLLECTION_NAME: &str = "message";
 use super::conn;
 
 #[derive(Clone)]
-pub struct MessageRepositoryImpl {
-    db: Surreal<Client>,
-}
+pub struct MessageRepositoryImpl {}
 
 impl MessageRepositoryImpl {
     pub async fn new() -> Self {
-        MessageRepositoryImpl { db: conn().await }
+        MessageRepositoryImpl {}
     }
 }
 
 #[async_trait]
-impl MessageRepository for MessageRepositoryImpl {
-    async fn get(&self, id: &MessageId) -> Result<Option<DbMessage>, String> {
-        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+impl MessageRepository<Surreal<Client>> for MessageRepositoryImpl {
+    async fn get(&self, db: &Surreal<Client>, id: &MessageId) -> Result<Option<DbMessage>, String> {
+        let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
@@ -36,18 +34,16 @@ impl MessageRepository for MessageRepositoryImpl {
         }
     }
 
-    async fn delete(&self, id: &MessageId) -> Result<u8, String> {
-        self.db
-            .delete::<Option<DbMessage>>((COLLECTION_NAME, id.to_string()))
+    async fn delete(&self, db: &Surreal<Client>, id: &MessageId) -> Result<u8, String> {
+        db.delete::<Option<DbMessage>>((COLLECTION_NAME, id.to_string()))
             .await
             .unwrap();
 
         Ok(1)
     }
 
-    async fn add(&self, message: &DbMessage) -> Result<DbMessage, String> {
-        let created: DbMessage = self
-            .db
+    async fn add(&self, db: &Surreal<Client>, message: &DbMessage) -> Result<DbMessage, String> {
+        let created: DbMessage = db
             .create((COLLECTION_NAME, message.id.to_string()))
             .content(message)
             .await
@@ -58,6 +54,7 @@ impl MessageRepository for MessageRepositoryImpl {
 
     async fn get_list_by_chnanel_id(
         &self,
+        db: &Surreal<Client>,
         channel_id: &ChannelId,
     ) -> Result<Vec<DbMessage>, String> {
         todo!()

@@ -21,20 +21,22 @@ use tonic::async_trait;
 const COLLECTION_NAME: &str = "message_acknowledge";
 
 #[derive(Clone)]
-pub struct MessageAcknowledgeRepositoryImpl {
-    db: Surreal<Client>,
-}
+pub struct MessageAcknowledgeRepositoryImpl {}
 
 impl MessageAcknowledgeRepositoryImpl {
     pub async fn new() -> Self {
-        MessageAcknowledgeRepositoryImpl { db: conn().await }
+        MessageAcknowledgeRepositoryImpl {}
     }
 }
 
 #[async_trait]
-impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
-    async fn get(&self, id: MessageAcknowledgeId) -> Result<Option<DbMessageAcknowledge>, String> {
-        let res = self.db.select((COLLECTION_NAME, id.to_string())).await;
+impl MessageAcknowledgeRepository<Surreal<Client>> for MessageAcknowledgeRepositoryImpl {
+    async fn get(
+        &self,
+        db: &Surreal<Client>,
+        id: MessageAcknowledgeId,
+    ) -> Result<Option<DbMessageAcknowledge>, String> {
+        let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
             Ok(res) => Ok(res),
@@ -44,6 +46,7 @@ impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
 
     async fn get_by_message_and_user(
         &self,
+        db: &Surreal<Client>,
         message_id: &MessageId,
         user_id: &UserId,
     ) -> Result<Option<DbMessageAcknowledge>, String> {
@@ -57,8 +60,7 @@ impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
             id: Id::String(user_id.to_string()),
         };
 
-        let res = self
-            .db
+        let res = db
             .query(format!(
                 "SELECT * FROM {COLLECTION_NAME} WHERE message_id == $message_id AND user_id == $user_id"
             ))
@@ -76,6 +78,7 @@ impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
 
     async fn get_list_by_message(
         &self,
+        db: &Surreal<Client>,
         message_id: &MessageId,
     ) -> Result<Vec<DbMessageAcknowledge>, String> {
         let message = Thing {
@@ -83,8 +86,7 @@ impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
             id: Id::String(message_id.to_string()),
         };
 
-        let res = self
-            .db
+        let res = db
             .query(format!(
                 "SELECT * FROM {COLLECTION_NAME} WHERE message_id == $message_id"
             ))
@@ -101,10 +103,10 @@ impl MessageAcknowledgeRepository for MessageAcknowledgeRepositoryImpl {
 
     async fn add(
         &self,
+        db: &Surreal<Client>,
         message_acknowledge: &DbMessageAcknowledge,
     ) -> Result<DbMessageAcknowledge, String> {
-        let created: DbMessageAcknowledge = self
-            .db
+        let created: DbMessageAcknowledge = db
             .create((COLLECTION_NAME, message_acknowledge.id.to_string()))
             .content(message_acknowledge)
             .await

@@ -1,3 +1,4 @@
+use crate::db::surreal::conn;
 use crate::db::traits::channel::ChannelRepository;
 use crate::db::traits::server::ServerRepository;
 use crate::db::traits::server_member::ServerMemberRepository;
@@ -8,6 +9,8 @@ use crate::models::user::UserId;
 use crate::redis::{self as yc_redis, RedisClient};
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
+use surrealdb::engine::remote::ws::Client;
+use surrealdb::Surreal;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::Stream;
 use tonic::{Response, Result, Status};
@@ -20,9 +23,9 @@ use super::ycchat_connect::{ChannelReceiveMessage, Ping, ServerSignal};
 #[derive(Debug)]
 pub struct Shared<C, S, U>
 where
-    C: ChannelRepository,
-    S: ServerRepository,
-    U: ServerMemberRepository,
+    C: ChannelRepository<Surreal<Client>>,
+    S: ServerRepository<Surreal<Client>>,
+    U: ServerMemberRepository<Surreal<Client>>,
 {
     pub redis_client: RedisClient,
     pub senders: RwLock<HashMap<UserId, mpsc::Sender<ConnectResponse>>>,
@@ -33,9 +36,9 @@ where
 
 impl<C, S, U> Shared<C, S, U>
 where
-    C: ChannelRepository,
-    S: ServerRepository,
-    U: ServerMemberRepository,
+    C: ChannelRepository<Surreal<Client>>,
+    S: ServerRepository<Surreal<Client>>,
+    U: ServerMemberRepository<Surreal<Client>>,
 {
     fn new(channel_repository: C, server_repository: S, server_member_repository: U) -> Self {
         let redis = yc_redis::RedisClient::new();
@@ -79,6 +82,8 @@ where
     }
 
     async fn broadcast(&self, msg: &Message) {
+        let db = conn().await;
+
         let name = &msg.name;
         // let parent_slice: Vec<&str> = parent.split('/').collect();
         // let channel_id = ChannelId::from_string(parent_slice[1]);
@@ -87,7 +92,7 @@ where
 
         let channel: DbChannel = self
             .channel_repository
-            .get(&channel_id)
+            .get(&db, &channel_id)
             .await
             .unwrap()
             .unwrap();
@@ -100,7 +105,7 @@ where
 
         let server_members: Vec<DbServerMember> = self
             .server_member_repository
-            .get_server_members_by_server_id(&server_id)
+            .get_server_members_by_server_id(&db, &server_id)
             .await
             .unwrap();
 
@@ -151,18 +156,18 @@ where
 
 pub struct ConnectService<C, S, U>
 where
-    C: ChannelRepository,
-    S: ServerRepository,
-    U: ServerMemberRepository,
+    C: ChannelRepository<Surreal<Client>>,
+    S: ServerRepository<Surreal<Client>>,
+    U: ServerMemberRepository<Surreal<Client>>,
 {
     shared: Arc<Shared<C, S, U>>,
 }
 
 impl<C, S, U> ConnectService<C, S, U>
 where
-    C: ChannelRepository + 'static,
-    S: ServerRepository + 'static,
-    U: ServerMemberRepository + 'static,
+    C: ChannelRepository<Surreal<Client>> + 'static,
+    S: ServerRepository<Surreal<Client>> + 'static,
+    U: ServerMemberRepository<Surreal<Client>> + 'static,
 {
     pub fn new(channel_repository: C, server_repository: S, server_member_repository: U) -> Self {
         let shared = Shared::new(
@@ -197,9 +202,9 @@ where
 #[tonic::async_trait]
 impl<C, S, U> Connect for ConnectService<C, S, U>
 where
-    C: ChannelRepository + 'static,
-    S: ServerRepository + 'static,
-    U: ServerMemberRepository + 'static,
+    C: ChannelRepository<Surreal<Client>> + 'static,
+    S: ServerRepository<Surreal<Client>> + 'static,
+    U: ServerMemberRepository<Surreal<Client>> + 'static,
 {
     type ConnStream =
         Pin<Box<dyn Stream<Item = Result<ConnectResponse, Status>> + Send + Sync + 'static>>;
