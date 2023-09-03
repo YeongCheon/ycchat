@@ -89,6 +89,15 @@ DEFINE FIELD create_time ON TABLE message TYPE datetime DEFAULT time::now();
 DEFINE FIELD update_time ON TABLE message TYPE option<datetime>;
 
 ///////////////////////////////////////////////////////////////
+/* member */
+DEFINE TABLE member SCHEMAFULL;
+DEFINE FIELD display_name ON TABLE member TYPE string ASSERT string::len($value) <= 50;
+DEFINE FIELD description ON TABLE member TYPE string ASSERT string::len($value) <= 255;
+DEFINE FIELD avatar ON TABLE member TYPE option<record<attachment>>;
+DEFINE FIELD update_time ON TABLE message TYPE option<datetime>;
+DEFINE FIELD create_time ON TABLE member TYPE datetime;
+
+///////////////////////////////////////////////////////////////
 /* reaction */
 // use 'RELATE' statement
 // in: user
