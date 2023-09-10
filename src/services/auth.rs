@@ -11,7 +11,7 @@ use crate::db::surreal::conn;
 use crate::db::traits::auth::AuthRepository;
 use crate::models::auth::DbAuth;
 use crate::models::user::UserId;
-use crate::redis::RedisClient;
+// use crate::redis::RedisClient;
 
 use super::ycchat_auth::auth_server::Auth;
 use super::ycchat_auth::{
@@ -23,7 +23,7 @@ pub struct AuthService<U>
 where
     U: AuthRepository<Surreal<Client>>,
 {
-    redis_client: RedisClient,
+    // redis_client: RedisClient,
     auth_repository: U,
 }
 
@@ -32,10 +32,10 @@ where
     U: AuthRepository<Surreal<Client>>,
 {
     pub fn new(auth_repository: U) -> Self {
-        let redis_client = RedisClient::new();
+        // let redis_client = RedisClient::new();
 
         AuthService {
-            redis_client,
+            // redis_client,
             auth_repository,
         }
     }
@@ -107,7 +107,7 @@ where
         let access_token = generate_access_token(&user_id).unwrap();
 
         let refresh_token = generate_refresh_token(&user_id).unwrap();
-        self.redis_client.set_refresh_token(&refresh_token).unwrap();
+        // self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignUpResponse {
             user_id: res.id.to_string(),
@@ -152,7 +152,7 @@ where
 
         let access_token = generate_access_token(&user_id).unwrap();
         let refresh_token = generate_refresh_token(&user_id).unwrap();
-        self.redis_client.set_refresh_token(&refresh_token).unwrap();
+        // self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignInResponse {
             user_id: user_id.to_string(),
@@ -169,25 +169,25 @@ where
         let old_refresh_token = request.into_inner().refresh_token;
         let user_id = self.get_user_id(&old_refresh_token)?;
 
-        let res = self
-            .redis_client
-            .get_refresh_token(&old_refresh_token)
-            .unwrap();
+        // let res = self
+        //     .redis_client
+        //     .get_refresh_token(&old_refresh_token)
+        //     .unwrap();
 
-        if res.is_none() {
-            return Err(Status::unauthenticated("invalid argument"));
-        }
+        // if res.is_none() {
+        //     return Err(Status::unauthenticated("invalid argument"));
+        // }
 
         let access_token = generate_access_token(&user_id).unwrap();
         let new_refresh_token = generate_refresh_token(&user_id).unwrap();
 
-        self.redis_client
-            .delete_refresh_token(&old_refresh_token)
-            .unwrap();
+        // self.redis_client
+        //     .delete_refresh_token(&old_refresh_token)
+        //     .unwrap();
 
-        self.redis_client
-            .set_refresh_token(&new_refresh_token)
-            .unwrap();
+        // self.redis_client
+        //     .set_refresh_token(&new_refresh_token)
+        //     .unwrap();
 
         Ok(Response::new(RefreshTokenResponse {
             access_token,
@@ -202,9 +202,9 @@ where
     ) -> Result<Response<()>, Status> {
         let refresh_token = request.into_inner().refresh_token;
 
-        self.redis_client
-            .delete_refresh_token(&refresh_token)
-            .unwrap();
+        // self.redis_client
+        //     .delete_refresh_token(&refresh_token)
+        //     .unwrap();
 
         Ok(Response::new(()))
     }

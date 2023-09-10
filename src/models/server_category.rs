@@ -11,7 +11,10 @@ use crate::{
     services::model::Category,
 };
 
-use super::server::{DbServer, ServerId};
+use super::{
+    attachment::AttachmentId,
+    server::{DbServer, ServerId},
+};
 
 pub type ServerCategoryId = Ulid;
 
@@ -22,16 +25,16 @@ pub struct DbServerCategory {
         deserialize_with = "deserialize_ulid_id"
     )]
     pub id: ServerCategoryId,
+    pub display_name: String,
+    pub description: String,
 
     #[serde(
         serialize_with = "server_serialize_id",
         deserialize_with = "deserialize_ulid_id"
     )]
-    pub server_id: ServerId,
-    pub display_name: String,
-    pub description: String,
+    pub server: ServerId,
+    pub icon: Option<AttachmentId>,
     pub order: u32,
-
     pub create_time: DateTime<Utc>,
     pub update_time: Option<DateTime<Utc>>,
 }
@@ -42,9 +45,10 @@ impl DbServerCategory {
 
         DbServerCategory {
             id,
-            server_id: server.id,
             display_name: message.display_name,
             description: message.description,
+            server: server.id,
+            icon: None,
             order: message.order,
             create_time: chrono::offset::Utc::now(),
             update_time: None,
@@ -53,10 +57,11 @@ impl DbServerCategory {
 
     pub fn to_message(self) -> Category {
         Category {
-            name: format!("servers/{}/categories/{}", self.server_id, self.id),
+            name: format!("servers/{}/categories/{}", self.server, self.id),
             display_name: self.display_name,
             description: self.description,
             order: self.order,
+            icon: None,
             create_time: Some(Timestamp {
                 seconds: self.create_time.timestamp(),
                 nanos: self.create_time.nanosecond() as i32,

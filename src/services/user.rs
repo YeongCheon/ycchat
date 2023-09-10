@@ -107,7 +107,7 @@ where
 
         exist_user.display_name = user.display_name;
         exist_user.description = user.description;
-        exist_user.update_time = chrono::offset::Utc::now();
+        exist_user.update_time = Some(chrono::offset::Utc::now());
 
         let res = self
             .user_repository

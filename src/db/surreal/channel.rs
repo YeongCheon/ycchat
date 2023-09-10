@@ -13,8 +13,6 @@ use crate::{
 
 use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 
-use super::conn;
-
 const COLLECTION_NAME: &str = "channel";
 
 #[derive(Clone)]
@@ -67,6 +65,7 @@ impl ChannelRepository<Surreal<Client>> for ChannelRepositoryImpl {
             .create((COLLECTION_NAME, channel.id.to_string()))
             .content(channel)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)

@@ -1,5 +1,5 @@
 use super::{
-    conn, message::COLLECTION_NAME as MESSAGE_COLLECTION_NAME,
+    message::COLLECTION_NAME as MESSAGE_COLLECTION_NAME,
     user::COLLECTION_NAME as USER_COLLECTION_NAME,
 };
 use crate::{
@@ -110,6 +110,7 @@ impl MessageAcknowledgeRepository<Surreal<Client>> for MessageAcknowledgeReposit
             .create((COLLECTION_NAME, message_acknowledge.id.to_string()))
             .content(message_acknowledge)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)

@@ -1,17 +1,14 @@
-use chrono::{DateTime, Timelike, Utc};
-use prost_types::Timestamp;
-use serde::{Deserialize, Serialize};
-
-use crate::services::model::ServerMember;
-
 use super::{attachment::Attachment, server::ServerId, user::UserId};
-
-pub type ServerMemberId = ulid::Ulid;
-
 use crate::db::surreal::{
     deserialize_ulid_id, server::serialize_id as server_serialize_id, server_member::serialize_id,
     user::serialize_id as user_serialize_id,
 };
+use crate::services::model::ServerMember;
+use chrono::{DateTime, Timelike, Utc};
+use prost_types::Timestamp;
+use serde::{Deserialize, Serialize};
+
+pub type ServerMemberId = ulid::Ulid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbServerMember {
@@ -21,20 +18,22 @@ pub struct DbServerMember {
     )]
     pub id: ServerMemberId,
     #[serde(
+        rename = "in",
+        serialize_with = "user_serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
+    pub user: UserId,
+    #[serde(
+        rename = "out",
         serialize_with = "server_serialize_id",
         deserialize_with = "deserialize_ulid_id"
     )]
     pub server: ServerId,
-    #[serde(
-        serialize_with = "user_serialize_id",
-        deserialize_with = "deserialize_ulid_id"
-    )]
-    pub user: UserId, // FIXME
     pub display_name: String,
     pub description: String,
     pub avatar: Option<Attachment>,
     pub create_time: DateTime<Utc>,
-    pub update_time: DateTime<Utc>,
+    pub update_time: Option<DateTime<Utc>>,
 }
 
 impl DbServerMember {
@@ -47,7 +46,7 @@ impl DbServerMember {
             description,
             avatar: None,
             create_time: chrono::offset::Utc::now(),
-            update_time: chrono::offset::Utc::now(),
+            update_time: None,
         }
     }
 
@@ -62,9 +61,9 @@ impl DbServerMember {
                 seconds: self.create_time.timestamp(),
                 nanos: self.create_time.nanosecond() as i32,
             }),
-            update_time: Some(Timestamp {
-                seconds: self.update_time.timestamp(),
-                nanos: self.update_time.nanosecond() as i32,
+            update_time: self.update_time.map(|update_time| Timestamp {
+                seconds: update_time.timestamp(),
+                nanos: update_time.nanosecond() as i32,
             }),
         }
     }

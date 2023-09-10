@@ -21,6 +21,11 @@ pub struct DbMessage {
         deserialize_with = "deserialize_ulid_id"
     )]
     pub id: MessageId,
+    #[serde(
+        serialize_with = "user_serialize_id",
+        deserialize_with = "deserialize_ulid_id"
+    )]
+    pub author: UserId,
 
     #[serde(
         serialize_with = "channel_serialize_id",
@@ -28,19 +33,13 @@ pub struct DbMessage {
     )]
     pub channel: ChannelId,
 
-    #[serde(
-        serialize_with = "user_serialize_id",
-        deserialize_with = "deserialize_ulid_id"
-    )]
-    pub author: UserId,
     pub content: String,
-    // pub reactions: Vec<Reaction>,
+
+    pub message_type: String,
     // pub attachments: Vec<AttachmentId>,
     pub create_time: DateTime<Utc>,
     pub update_time: Option<DateTime<Utc>>,
 }
-
-pub enum Reaction {}
 
 impl DbMessage {
     pub fn new(author: UserId, channel: ChannelId, content: String) -> Self {
@@ -49,14 +48,13 @@ impl DbMessage {
             author,
             channel,
             content,
+            message_type: "FIXME".to_string(),
             create_time: chrono::offset::Utc::now(),
             update_time: None,
         }
     }
 
     pub fn to_message(self) -> Message {
-        let mut reactions = HashMap::new();
-
         Message {
             name: format!(
                 "channels/{}/messages/{}",
@@ -65,7 +63,7 @@ impl DbMessage {
             ),
             author: self.author.to_string(),
             content: self.content,
-            reactions,
+            reactions: HashMap::new(), // FIXME
             attachments: vec![],
             create_time: Some(Timestamp {
                 seconds: self.create_time.timestamp(),

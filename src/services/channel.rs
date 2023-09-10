@@ -15,7 +15,7 @@ use crate::models::message::DbMessage;
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
 use crate::models::user::UserId;
-use crate::redis::RedisClient;
+// use crate::redis::RedisClient;
 
 use super::model::Channel as ChannelModel;
 use super::ycchat_channel::channel_server::Channel;
@@ -39,7 +39,7 @@ where
     channel_repository: C,
     server_repository: S,
     server_category_repository: SC,
-    redis_client: RedisClient,
+    // redis_client: RedisClient,
 }
 
 impl<SM, M, C, S, SC> ChannelService<SM, M, C, S, SC>
@@ -57,7 +57,7 @@ where
         server_repository: S,
         server_category_repository: SC,
     ) -> Self {
-        let redis_client = RedisClient::new();
+        // let redis_client = RedisClient::new();
 
         ChannelService {
             server_member_repository,
@@ -65,7 +65,7 @@ where
             channel_repository,
             server_repository,
             server_category_repository,
-            redis_client,
+            // redis_client,
         }
     }
 }
@@ -296,7 +296,7 @@ where
         let message = self.message_repository.add(&db, &message).await.unwrap();
         let message = message.to_message();
 
-        self.redis_client.chat_publish(&message).unwrap();
+        // self.redis_client.chat_publish(&message).unwrap();
 
         Ok(Response::new(SpeechResponse {
             result: Some(message),

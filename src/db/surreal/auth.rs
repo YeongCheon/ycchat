@@ -53,6 +53,7 @@ impl AuthRepository<Surreal<Client>> for AuthRepositoryImpl {
             .create((COLLECTION_NAME, auth.id.to_string()))
             .content(auth)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)

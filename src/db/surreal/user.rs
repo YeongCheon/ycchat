@@ -3,7 +3,6 @@ use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
 use tonic::async_trait;
 
 use super::super::traits::user::UserRepository;
-use super::conn;
 use crate::models::user::{DbUser, UserId};
 
 pub struct UserRepositoryImpl {}
@@ -24,7 +23,7 @@ impl UserRepository<Surreal<Client>> for UserRepositoryImpl {
             .await;
 
         match res {
-            Ok(res) => Ok(res),
+            Ok(res) => Ok(res.unwrap()),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -34,7 +33,9 @@ impl UserRepository<Surreal<Client>> for UserRepositoryImpl {
             .create((COLLECTION_NAME, user.id.to_string()))
             .content(user)
             .await
+            .unwrap()
             .unwrap();
+
         dbg!(&created);
 
         Ok(created)

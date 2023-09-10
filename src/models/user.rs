@@ -27,7 +27,7 @@ pub struct DbUser {
     pub language_code: Option<String>,
     pub time_zone: Option<String>,
     pub create_time: DateTime<Utc>,
-    pub update_time: DateTime<Utc>,
+    pub update_time: Option<DateTime<Utc>>,
 }
 
 impl DbUser {
@@ -41,7 +41,7 @@ impl DbUser {
             language_code: message.language_code,
             time_zone: message.time_zone,
             create_time: chrono::offset::Utc::now(),
-            update_time: chrono::offset::Utc::now(),
+            update_time: None,
         }
     }
 
@@ -55,7 +55,7 @@ impl DbUser {
             language_code: message.language_code,
             time_zone: message.time_zone,
             create_time: chrono::offset::Utc::now(),
-            update_time: chrono::offset::Utc::now(),
+            update_time: None,
         }
     }
 
@@ -72,9 +72,9 @@ impl DbUser {
                 seconds: self.create_time.timestamp(),
                 nanos: self.create_time.nanosecond() as i32,
             }),
-            update_time: Some(Timestamp {
-                seconds: self.update_time.timestamp(),
-                nanos: self.update_time.nanosecond() as i32,
+            update_time: self.update_time.map(|update_time| Timestamp {
+                seconds: update_time.timestamp(),
+                nanos: update_time.nanosecond() as i32,
             }),
         }
     }

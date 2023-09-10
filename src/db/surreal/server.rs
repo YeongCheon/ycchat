@@ -7,8 +7,6 @@ use crate::{
     models::server::{DbServer, ServerId},
 };
 
-use super::conn;
-
 #[derive(Clone)]
 pub struct ServerRepositoryImpl {}
 
@@ -28,7 +26,7 @@ impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
             .await;
 
         match res {
-            Ok(res) => Ok(res),
+            Ok(res) => Ok(res.unwrap()),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -42,6 +40,7 @@ impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
             .create((COLLECTION_NAME, server.id.to_string()))
             .content(server)
             .await
+            .unwrap()
             .unwrap();
         dbg!(&created);
 

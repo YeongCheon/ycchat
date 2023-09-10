@@ -37,7 +37,7 @@ impl ServerMemberRepository<Surreal<Client>> for ServerMemberRepositoryImpl {
             .await;
 
         match res {
-            Ok(res) => Ok(res),
+            Ok(res) => Ok(res.unwrap()),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -51,6 +51,7 @@ impl ServerMemberRepository<Surreal<Client>> for ServerMemberRepositoryImpl {
             .create((COLLECTION_NAME, server_member.id.to_string()))
             .content(server_member)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)

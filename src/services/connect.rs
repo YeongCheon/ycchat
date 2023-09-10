@@ -6,7 +6,7 @@ use crate::models::channel::{ChannelId, DbChannel};
 use crate::models::server::ServerId;
 use crate::models::server_member::DbServerMember;
 use crate::models::user::UserId;
-use crate::redis::{self as yc_redis, RedisClient};
+// use crate::redis::{self as yc_redis, RedisClient};
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
 use surrealdb::engine::remote::ws::Client;
@@ -27,7 +27,7 @@ where
     S: ServerRepository<Surreal<Client>>,
     U: ServerMemberRepository<Surreal<Client>>,
 {
-    pub redis_client: RedisClient,
+    // pub redis_client: RedisClient,
     pub senders: RwLock<HashMap<UserId, mpsc::Sender<ConnectResponse>>>,
     pub channel_repository: C,
     pub server_repository: S,
@@ -41,12 +41,13 @@ where
     U: ServerMemberRepository<Surreal<Client>>,
 {
     fn new(channel_repository: C, server_repository: S, server_member_repository: U) -> Self {
-        let redis = yc_redis::RedisClient::new();
+        // let redis = yc_redis::RedisClient::new();
 
         let senders = RwLock::new(HashMap::new());
 
         Shared {
-            redis_client: redis,
+            // redis_client: todo!("FIXME"),
+            // redis_client: redis,
             senders,
             channel_repository,
             server_repository,
@@ -146,11 +147,11 @@ where
     }
 
     pub async fn incr_unread_message_count(&self, channel_id: &ChannelId) {
-        let members = self.redis_client.get_room_members_all(channel_id).unwrap();
+        // let members = self.redis_client.get_room_members_all(channel_id).unwrap();
 
-        members.iter().for_each(|user_id| {
-            self.redis_client.incr(user_id, channel_id).unwrap();
-        });
+        // members.iter().for_each(|user_id| {
+        //     self.redis_client.incr(user_id, channel_id).unwrap();
+        // });
     }
 }
 
@@ -177,7 +178,7 @@ where
         );
         let (tx, mut rx) = mpsc::channel(32);
 
-        shared.redis_client.chat_subscribe(tx);
+        // shared.redis_client.chat_subscribe(tx);
 
         let shared = Arc::new(shared);
 

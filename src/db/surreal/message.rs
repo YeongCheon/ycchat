@@ -12,8 +12,6 @@ use crate::{
 
 pub const COLLECTION_NAME: &str = "message";
 
-use super::conn;
-
 #[derive(Clone)]
 pub struct MessageRepositoryImpl {}
 
@@ -47,6 +45,7 @@ impl MessageRepository<Surreal<Client>> for MessageRepositoryImpl {
             .create((COLLECTION_NAME, message.id.to_string()))
             .content(message)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)

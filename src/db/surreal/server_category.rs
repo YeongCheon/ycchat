@@ -13,8 +13,6 @@ use crate::{
 
 use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 
-use super::conn;
-
 pub const COLLECTION_NAME: &str = "server_category";
 
 #[derive(Clone)]
@@ -36,7 +34,7 @@ impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl 
         let res = db.select((COLLECTION_NAME, id.to_string())).await;
 
         match res {
-            Ok(res) => Ok(res),
+            Ok(res) => Ok(res.unwrap()),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -50,6 +48,7 @@ impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl 
             .create((COLLECTION_NAME, server_category.id.to_string()))
             .content(server_category)
             .await
+            .unwrap()
             .unwrap();
 
         Ok(created)
