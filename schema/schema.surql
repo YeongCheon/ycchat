@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////
-/* db version: v1.0.0-beta.10 */
+/* db version: v1.0.0-beta.11 */
 ///////////////////////////////////////////////////////////////
 /* auth */
 DEFINE TABLE auth SCHEMAFULL;
 
 DEFINE FIELD username ON auth TYPE string ASSERT $value = /[a-z][a-z0-9_]{1,20}/;
 DEFINE FIELD password ON auth TYPE string;
-DEFINE FIELD email ON auth TYPE string VALUE string::lowercase($value) ASSERT is::email($value);
+DEFINE FIELD email ON auth TYPE string VALUE string::lowercase($value) ASSERT string::is::email($value);
 DEFINE FIELD is_email_verified ON auth TYPE bool DEFAULT false;
 DEFINE FIELD create_time ON auth TYPE datetime DEFAULT time::now();
 DEFINE FIELD update_time ON auth TYPE option<datetime>;
@@ -74,12 +74,19 @@ DEFINE FIELD members ON channel TYPE array<record<user>>; // only use when chann
 /* attachment */
 DEFINE TABLE attachment SCHEMAFULL;
 
-DEFINE FIELD url ON attachment TYPE string ASSERT is::url($value);
+DEFINE FIELD url ON attachment TYPE string ASSERT string::is::url($value);
 DEFINE FIELD filename ON attachment TYPE string;
 DEFINE FIELD mime_type ON attachment TYPE string;
 DEFINE FIELD file_size ON attachment TYPE number ASSERT $value > 0 AND type::int($value); // unit: bytes
 DEFINE FIELD metadata ON attachment FLEXIBLE TYPE option<object>;
 DEFINE FIELD create_time ON attachment TYPE datetime DEFAULT time::now();
+
+///////////////////////////////////////////////////////////////
+/* attachment_uploaded */
+DEFINE TABLE attachment_uploaded SCHEMAFULL;
+// RELATE user:USER_ID->attachment_uploaded->attachment:ATTACHMENT_ID
+
+DEFINE INDEX unique_attachment_uploaded ON attachment_uploaded COLUMNS out UNIQUE;
 
 
 ///////////////////////////////////////////////////////////////
@@ -87,22 +94,26 @@ DEFINE FIELD create_time ON attachment TYPE datetime DEFAULT time::now();
 DEFINE TABLE message SCHEMAFULL;
 
 DEFINE FIELD author ON message TYPE record<user>;
-DEFINE FIELD content ON message TYPE record<user>;
+DEFINE FIELD channel ON message TYPE record<channel>;
+DEFINE FIELD content ON message TYPE string;
+DEFINE FIELD message_type ON message TYPE string;
 DEFINE FIELD attachments ON message TYPE array<record<attachment>>;
 DEFINE FIELD create_time ON message TYPE datetime DEFAULT time::now();
 DEFINE FIELD update_time ON message TYPE option<datetime>;
 
 ///////////////////////////////////////////////////////////////
-/* member */
-DEFINE TABLE member SCHEMAFULL;
+/* server_member */
+// RELATE user:USER_ID->member->server:MESSAGE_ID
 
-DEFINE FIELD display_name ON member TYPE string ASSERT string::len($value) <= 50;
-DEFINE FIELD description ON member TYPE string ASSERT string::len($value) <= 255;
-DEFINE FIELD avatar ON member TYPE option<record<attachment>>;
-DEFINE FIELD update_time ON member TYPE option<datetime>;
-DEFINE FIELD create_time ON member TYPE datetime;
+DEFINE TABLE server_member SCHEMAFULL;
 
-DEFINE INDEX unique_member ON member COLUMNS in, out UNIQUE;
+DEFINE FIELD display_name ON server_member TYPE string ASSERT string::len($value) <= 50;
+DEFINE FIELD description ON server_member TYPE string ASSERT string::len($value) <= 255;
+DEFINE FIELD avatar ON server_member TYPE option<record<attachment>>;
+DEFINE FIELD update_time ON server_member TYPE option<datetime>;
+DEFINE FIELD create_time ON server_member TYPE datetime;
+
+DEFINE INDEX unique_member ON server_member COLUMNS in, out UNIQUE;
 
 ///////////////////////////////////////////////////////////////
 /* reaction */
