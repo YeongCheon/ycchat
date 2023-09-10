@@ -1,6 +1,6 @@
 # grpcurl Command List
 
-[grpcLink](https://github.com/fullstorydev/grpcurl)
+[grpcurl link](https://github.com/fullstorydev/grpcurl)
 
 ## Auth
 ### SignUp
