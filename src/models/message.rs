@@ -6,10 +6,11 @@ use crate::{
     },
     services::model::Message,
 };
-use chrono::{DateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use surrealdb::sql::Datetime;
 use ulid::Ulid;
 
 pub type MessageId = Ulid;
@@ -37,8 +38,8 @@ pub struct DbMessage {
 
     pub message_type: String,
     // pub attachments: Vec<AttachmentId>,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
 }
 
 impl DbMessage {
@@ -49,7 +50,7 @@ impl DbMessage {
             channel,
             content,
             message_type: "FIXME".to_string(),
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }

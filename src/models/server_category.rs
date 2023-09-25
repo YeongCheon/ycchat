@@ -1,6 +1,7 @@
-use chrono::{DateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 use ulid::Ulid;
 
 use crate::{
@@ -35,8 +36,8 @@ pub struct DbServerCategory {
     pub server: ServerId,
     pub icon: Option<AttachmentId>,
     pub order: u32,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
 }
 
 impl DbServerCategory {
@@ -50,7 +51,7 @@ impl DbServerCategory {
             server: server.id,
             icon: None,
             order: message.order,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }
@@ -77,6 +78,6 @@ impl DbServerCategory {
         self.display_name = message.display_name;
         self.description = message.description;
         self.order = message.order;
-        self.update_time = Some(chrono::offset::Utc::now());
+        self.update_time = Some(Datetime::default());
     }
 }

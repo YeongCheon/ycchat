@@ -1,6 +1,6 @@
 use crate::db::surreal::{deserialize_ulid_id, message_acknowledge::serialize_id};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 use ulid::Ulid;
 
 use super::{message::MessageId, user::UserId};
@@ -19,7 +19,7 @@ pub struct DbMessageAcknowledge {
 
     pub user_id: UserId,
 
-    pub create_time: DateTime<Utc>,
+    pub create_time: Datetime,
 }
 
 impl DbMessageAcknowledge {
@@ -28,7 +28,7 @@ impl DbMessageAcknowledge {
             id: MessageAcknowledgeId::new(),
             message_id,
             user_id,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
         }
     }
 }

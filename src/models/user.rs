@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use chrono::{DateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 use ulid::Ulid;
 
 use super::attachment::Attachment;
@@ -26,8 +27,8 @@ pub struct DbUser {
     pub region_code: Option<String>,
     pub language_code: Option<String>,
     pub time_zone: Option<String>,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
 }
 
 impl DbUser {
@@ -40,7 +41,7 @@ impl DbUser {
             region_code: message.region_code,
             language_code: message.language_code,
             time_zone: message.time_zone,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }
@@ -54,7 +55,7 @@ impl DbUser {
             region_code: message.region_code,
             language_code: message.language_code,
             time_zone: message.time_zone,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }

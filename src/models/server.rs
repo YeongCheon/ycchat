@@ -1,6 +1,7 @@
-use chrono::{DateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 
 use crate::services::model::Server;
 
@@ -35,8 +36,8 @@ pub struct DbServer {
     )]
     pub author: UserId,
     pub icon: Option<AttachmentId>,
-    pub create_time: DateTime<Utc>,
-    pub update_time: DateTime<Utc>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
     // pub managers: Vec<UserId>,
 }
 
@@ -49,8 +50,8 @@ impl DbServer {
             owner: UserId::new(),  // FIXME
             author: UserId::new(), // FIXME
             icon: None,
-            create_time: chrono::offset::Utc::now(),
-            update_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
+            update_time: None,
         }
     }
 
@@ -62,8 +63,8 @@ impl DbServer {
             owner: UserId::new(),  // FIXME
             author: UserId::new(), // FIXME
             icon: None,
-            create_time: chrono::offset::Utc::now(),
-            update_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
+            update_time: Some(Datetime::default()),
         }
     }
 
@@ -79,9 +80,9 @@ impl DbServer {
                 seconds: self.create_time.timestamp(),
                 nanos: self.create_time.nanosecond() as i32,
             }),
-            update_time: Some(Timestamp {
-                seconds: self.update_time.timestamp(),
-                nanos: self.update_time.nanosecond() as i32,
+            update_time: self.update_time.map(|update_time| Timestamp {
+                seconds: update_time.timestamp(),
+                nanos: update_time.nanosecond() as i32,
             }),
         }
     }

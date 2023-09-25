@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 
 use super::user::UserId;
 
@@ -13,7 +13,7 @@ pub struct Attachment {
     pub mime_type: String,
     pub file_size: i64,
     // pub metadata: Option<Map<String, String>>,
-    pub create_time: DateTime<Utc>,
+    pub create_time: Datetime,
 }
 
 pub struct AttachmentUplaoded {

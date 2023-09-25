@@ -1,8 +1,8 @@
 use crate::services::model::{channel::ChannelType as ChannelTypeMessage, Channel};
-use chrono::{DateTime, NaiveDateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Id, Thing};
+use surrealdb::sql::{Datetime, Id, Thing};
 use ulid::Ulid;
 
 use crate::db::surreal::{
@@ -31,8 +31,8 @@ pub struct DbChannel {
     pub description: String,
     pub order: u64,
     pub icon: Option<Attachment>,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,7 +62,7 @@ impl DbChannel {
             description: message.description,
             order: 0,
             icon: None,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }
@@ -92,7 +92,7 @@ impl DbChannel {
         self.description = message.description;
         self.order = message.order;
         // self.icon = message.icon;
-        self.update_time = Some(chrono::offset::Utc::now())
+        self.update_time = Some(Datetime::default())
     }
 }
 

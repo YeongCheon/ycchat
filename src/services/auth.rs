@@ -2,6 +2,7 @@ use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use surrealdb::engine::remote::ws::Client;
+use surrealdb::sql::Datetime;
 use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 use ulid::Ulid;
@@ -96,7 +97,7 @@ where
                     password: hashed_password,
                     email: None,
                     is_email_verified: false,
-                    create_time: chrono::offset::Utc::now(),
+                    create_time: Datetime::default(),
                     update_time: None,
                     last_login_time: None,
                 },
@@ -145,7 +146,7 @@ where
             .verify_password(password.as_bytes(), &parsed_hash)
             .is_ok());
 
-        auth.last_login_time = Some(chrono::offset::Utc::now());
+        auth.last_login_time = Some(Datetime::default());
         self.auth_repository.update(&db, &auth).await.unwrap();
 
         let user_id = auth.id;

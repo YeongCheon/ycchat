@@ -1,4 +1,4 @@
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use surrealdb::{engine::remote::ws::Client, sql::Datetime, Surreal};
 use tonic::{Request, Response, Result, Status};
 
 use crate::{
@@ -125,7 +125,7 @@ where
 
         exist_server.display_name = server.display_name;
         exist_server.description = server.description;
-        exist_server.update_time = chrono::offset::Utc::now();
+        exist_server.update_time = Some(Datetime::default());
 
         let res = self
             .server_repository

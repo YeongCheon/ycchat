@@ -4,9 +4,10 @@ use crate::db::surreal::{
     user::serialize_id as user_serialize_id,
 };
 use crate::services::model::ServerMember;
-use chrono::{DateTime, Timelike, Utc};
+use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 
 pub type ServerMemberId = ulid::Ulid;
 
@@ -32,8 +33,8 @@ pub struct DbServerMember {
     pub display_name: String,
     pub description: String,
     pub avatar: Option<Attachment>,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
 }
 
 impl DbServerMember {
@@ -45,7 +46,7 @@ impl DbServerMember {
             display_name,
             description,
             avatar: None,
-            create_time: chrono::offset::Utc::now(),
+            create_time: Datetime::default(),
             update_time: None,
         }
     }

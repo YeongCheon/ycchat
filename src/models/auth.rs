@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 
 use super::user::UserId;
 use crate::db::surreal::auth::serialize_id;
@@ -16,7 +16,7 @@ pub struct DbAuth {
     pub password: String,
     pub email: Option<String>,
     pub is_email_verified: bool,
-    pub create_time: DateTime<Utc>,
-    pub update_time: Option<DateTime<Utc>>,
-    pub last_login_time: Option<DateTime<Utc>>,
+    pub create_time: Datetime,
+    pub update_time: Option<Datetime>,
+    pub last_login_time: Option<Datetime>,
 }

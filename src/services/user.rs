@@ -1,4 +1,5 @@
 use surrealdb::engine::remote::ws::Client;
+use surrealdb::sql::Datetime;
 use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 
@@ -107,7 +108,7 @@ where
 
         exist_user.display_name = user.display_name;
         exist_user.description = user.description;
-        exist_user.update_time = Some(chrono::offset::Utc::now());
+        exist_user.update_time = Some(Datetime::default());
 
         let res = self
             .user_repository
