@@ -9,7 +9,7 @@ grpcurl \
   --plaintext \
   --import-path ./protobuf \
   --proto protobuf/auth/auth.proto \
-  -d '{"username":"test", "password":"test"}' \
+  -d '{"email": "kyc1682@gmail.com", "username":"test", "password":"test"}' \
   127.0.0.1:50051 \
   ycchat.auth.Auth.SignUp
 ```

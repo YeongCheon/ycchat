@@ -65,6 +65,7 @@ where
         let db = conn().await;
 
         let req = request.into_inner();
+        let email = req.email;
 
         let exist = self
             .auth_repository
@@ -92,10 +93,10 @@ where
             .add(
                 &db,
                 &DbAuth {
-                    id: user_id.clone(),
+                    id: user_id,
                     username: req.username,
                     password: hashed_password,
-                    email: None,
+                    email,
                     is_email_verified: false,
                     create_time: Datetime::default(),
                     update_time: None,
@@ -111,6 +112,7 @@ where
         // self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
         Ok(Response::new(SignUpResponse {
+            email: res.email,
             user_id: res.id.to_string(),
             access_token,
             refresh_token,
