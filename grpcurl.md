@@ -25,6 +25,31 @@ grpcurl \
   ycchat.auth.Auth.SignIn
 ```
 
+## Account
+### UpdatePassword
+```bash
+grpcurl \
+  --plaintext \
+  --import-path ./protobuf \
+  --proto protobuf/user/user.proto \
+  -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJhbnRjaGF0Iiwic3ViIjoiYWNjZXNzX3Rva2VuIiwiYXVkIjoiMDFIOVpDV1EyVjNGSlRXUDM5S040OVg4VzYiLCJpYXQiOjE2OTQzNTQ5NzAsImV4cCI6MTY5NDM1ODU3MH0.zFb64v6DBsfk7i2lHuUaWfwNIHU31f00a8JCth53FSg \
+  -d '{"current_password": "CURRENT_PASSWORD", "new_password": "NEW_PASSWORD"}' \
+  127.0.0.1:50051 \
+  ycchat.account.Account.UpdatePassword
+```
+
+### DeleteAccount
+```bash
+grpcurl \
+  --plaintext \
+  --import-path ./protobuf \
+  --proto protobuf/user/user.proto \
+  -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJhbnRjaGF0Iiwic3ViIjoiYWNjZXNzX3Rva2VuIiwiYXVkIjoiMDFIOVpDV1EyVjNGSlRXUDM5S040OVg4VzYiLCJpYXQiOjE2OTQzNTQ5NzAsImV4cCI6MTY5NDM1ODU3MH0.zFb64v6DBsfk7i2lHuUaWfwNIHU31f00a8JCth53FSg \
+  -d '{"reason": "I no longer use the service."}' \
+  127.0.0.1:50051 \
+  ycchat.account.Account.UpdatePassword
+```
+
 ## User
 ### CreateUser
 ```bash
