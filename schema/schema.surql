@@ -1,5 +1,9 @@
 ///////////////////////////////////////////////////////////////
-/* db version: v1.0.0-beta.11 */
+/* db version: v1.0.0 */
+///////////////////////////////////////////////////////////////
+DEFINE NAMESPACE ycchat;
+USE NS ycchat;
+DEFINE DATABASE ycchat;
 ///////////////////////////////////////////////////////////////
 /* auth */
 DEFINE TABLE auth SCHEMAFULL;
@@ -10,7 +14,7 @@ DEFINE FIELD email ON auth TYPE string VALUE string::lowercase($value) ASSERT st
 DEFINE FIELD is_email_verified ON auth TYPE bool DEFAULT false;
 DEFINE FIELD create_time ON auth TYPE datetime DEFAULT time::now();
 DEFINE FIELD update_time ON auth TYPE option<datetime>;
-DEFINE FIELD last_login_time ON auth TYPE datetime;
+DEFINE FIELD last_login_time ON auth TYPE option<datetime>;
 
 DEFINE INDEX authUsernameIndex ON auth COLUMNS username UNIQUE;
 DEFINE INDEX authEmailIndex ON auth COLUMNS email;
