@@ -20,13 +20,17 @@ pub const COLLECTION_NAME: &str = "server";
 
 #[async_trait]
 impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
-    async fn get_server(&self, db: &Surreal<Client>, id: &ServerId) -> Result<DbServer, String> {
+    async fn get_server(
+        &self,
+        db: &Surreal<Client>,
+        id: &ServerId,
+    ) -> Result<Option<DbServer>, String> {
         let res = db
             .select::<Option<DbServer>>((COLLECTION_NAME, id.to_string()))
             .await;
 
         match res {
-            Ok(res) => Ok(res.unwrap()),
+            Ok(res) => Ok(res),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -35,13 +39,13 @@ impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         server: &DbServer,
-    ) -> Result<DbServer, String> {
-        let created: DbServer = db
+    ) -> Result<Option<DbServer>, String> {
+        let created: Option<DbServer> = db
             .create((COLLECTION_NAME, server.id.to_string()))
             .content(server)
             .await
-            .unwrap()
             .unwrap();
+
         dbg!(&created);
 
         Ok(created)
@@ -51,14 +55,14 @@ impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         server: &DbServer,
-    ) -> Result<DbServer, String> {
+    ) -> Result<Option<DbServer>, String> {
         let res: Option<DbServer> = db
             .update((COLLECTION_NAME, server.id.to_string()))
             .content(server.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete_server(&self, db: &Surreal<Client>, id: &ServerId) -> Result<u8, String> {

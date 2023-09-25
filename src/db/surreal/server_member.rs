@@ -31,13 +31,13 @@ impl ServerMemberRepository<Surreal<Client>> for ServerMemberRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         id: &ServerMemberId,
-    ) -> Result<DbServerMember, String> {
+    ) -> Result<Option<DbServerMember>, String> {
         let res = db
             .select::<Option<DbServerMember>>((COLLECTION_NAME, id.to_string()))
             .await;
 
         match res {
-            Ok(res) => Ok(res.unwrap()),
+            Ok(res) => Ok(res),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -46,12 +46,11 @@ impl ServerMemberRepository<Surreal<Client>> for ServerMemberRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         server_member: &DbServerMember,
-    ) -> Result<DbServerMember, String> {
-        let created: DbServerMember = db
+    ) -> Result<Option<DbServerMember>, String> {
+        let created: Option<DbServerMember> = db
             .create((COLLECTION_NAME, server_member.id.to_string()))
             .content(server_member)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)
@@ -61,14 +60,14 @@ impl ServerMemberRepository<Surreal<Client>> for ServerMemberRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         server_member: &DbServerMember,
-    ) -> Result<DbServerMember, String> {
+    ) -> Result<Option<DbServerMember>, String> {
         let res: Option<DbServerMember> = db
             .update((COLLECTION_NAME, server_member.id.to_string()))
             .content(server_member.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete(&self, db: &Surreal<Client>, id: &ServerMemberId) -> Result<u8, String> {

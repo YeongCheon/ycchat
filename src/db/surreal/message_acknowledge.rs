@@ -105,12 +105,11 @@ impl MessageAcknowledgeRepository<Surreal<Client>> for MessageAcknowledgeReposit
         &self,
         db: &Surreal<Client>,
         message_acknowledge: &DbMessageAcknowledge,
-    ) -> Result<DbMessageAcknowledge, String> {
-        let created: DbMessageAcknowledge = db
+    ) -> Result<Option<DbMessageAcknowledge>, String> {
+        let created: Option<DbMessageAcknowledge> = db
             .create((COLLECTION_NAME, message_acknowledge.id.to_string()))
             .content(message_acknowledge)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)

@@ -11,13 +11,13 @@ pub trait ServerCategoryRepository<C>: Sync + Send {
         &self,
         db: &C,
         server_category: &DbServerCategory,
-    ) -> Result<DbServerCategory, String>;
+    ) -> Result<Option<DbServerCategory>, String>;
 
     async fn update(
         &self,
         db: &C,
         server_category: &DbServerCategory,
-    ) -> Result<DbServerCategory, String>;
+    ) -> Result<Option<DbServerCategory>, String>;
 
     async fn delete(&self, db: &C, id: &ServerCategoryId) -> Result<u8, String>;
 

@@ -6,9 +6,9 @@ pub trait AuthRepository<C>: Sync + Send {
 
     async fn get_by_username(&self, db: &C, username: &str) -> Result<Option<DbAuth>, String>;
 
-    async fn add(&self, db: &C, auth: &DbAuth) -> Result<DbAuth, String>;
+    async fn add(&self, db: &C, auth: &DbAuth) -> Result<Option<DbAuth>, String>;
 
-    async fn update(&self, db: &C, auth: &DbAuth) -> Result<DbAuth, String>;
+    async fn update(&self, db: &C, auth: &DbAuth) -> Result<Option<DbAuth>, String>;
 
     async fn delete(&self, db: &C, id: &UserId) -> Result<u8, String>;
 }

@@ -87,6 +87,13 @@ where
             .await
             .unwrap();
 
+        let server_member = match server_member {
+            Some(server_member) => server_member,
+            None => {
+                return Err(Status::not_found("not exist"));
+            }
+        };
+
         Ok(Response::new(server_member.to_message()))
     }
 }

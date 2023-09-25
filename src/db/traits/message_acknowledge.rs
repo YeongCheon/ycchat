@@ -29,5 +29,5 @@ pub trait MessageAcknowledgeRepository<C>: Sync + Send {
         &self,
         db: &C,
         message_acknowledge: &DbMessageAcknowledge,
-    ) -> Result<DbMessageAcknowledge, String>;
+    ) -> Result<Option<DbMessageAcknowledge>, String>;
 }

@@ -17,38 +17,43 @@ pub const COLLECTION_NAME: &str = "user";
 
 #[async_trait]
 impl UserRepository<Surreal<Client>> for UserRepositoryImpl {
-    async fn get_user(&self, db: &Surreal<Client>, id: &UserId) -> Result<DbUser, String> {
+    async fn get_user(&self, db: &Surreal<Client>, id: &UserId) -> Result<Option<DbUser>, String> {
         let res = db
             .select::<Option<DbUser>>((COLLECTION_NAME, id.to_string()))
             .await;
 
         match res {
-            Ok(res) => Ok(res.unwrap()),
+            Ok(res) => Ok(res),
             Err(e) => Err(e.to_string()),
         }
     }
 
-    async fn add_user(&self, db: &Surreal<Client>, user: &DbUser) -> Result<DbUser, String> {
-        let created: DbUser = db
+    async fn add_user(
+        &self,
+        db: &Surreal<Client>,
+        user: &DbUser,
+    ) -> Result<Option<DbUser>, String> {
+        let created: Option<DbUser> = db
             .create((COLLECTION_NAME, user.id.to_string()))
             .content(user)
             .await
-            .unwrap()
             .unwrap();
-
-        dbg!(&created);
 
         Ok(created)
     }
 
-    async fn update_user(&self, db: &Surreal<Client>, user: &DbUser) -> Result<DbUser, String> {
+    async fn update_user(
+        &self,
+        db: &Surreal<Client>,
+        user: &DbUser,
+    ) -> Result<Option<DbUser>, String> {
         let res: Option<DbUser> = db
             .update((COLLECTION_NAME, user.id.to_string()))
             .content(user.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete_user(&self, db: &Surreal<Client>, id: &UserId) -> Result<u8, String> {

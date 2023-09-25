@@ -44,29 +44,24 @@ impl AuthRepository<Surreal<Client>> for AuthRepositoryImpl {
         Ok(res.take::<Option<DbAuth>>(0).unwrap())
     }
 
-    async fn add(
-        &self,
-        db: &Surreal<Client>,
-        auth: &DbAuth,
-    ) -> Result<crate::models::auth::DbAuth, String> {
-        let created: DbAuth = db
+    async fn add(&self, db: &Surreal<Client>, auth: &DbAuth) -> Result<Option<DbAuth>, String> {
+        let created = db
             .create((COLLECTION_NAME, auth.id.to_string()))
             .content(auth)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)
     }
 
-    async fn update(&self, db: &Surreal<Client>, auth: &DbAuth) -> Result<DbAuth, String> {
+    async fn update(&self, db: &Surreal<Client>, auth: &DbAuth) -> Result<Option<DbAuth>, String> {
         let res: Option<DbAuth> = db
             .update((COLLECTION_NAME, auth.id.to_string()))
             .content(auth.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete(&self, db: &Surreal<Client>, id: &UserId) -> Result<u8, String> {

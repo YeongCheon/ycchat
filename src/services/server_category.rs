@@ -109,9 +109,15 @@ where
         let name = name.split('/').collect::<Vec<&str>>();
         let server_id = ServerId::from_string(name[1]).unwrap();
 
-        let server: DbServer = match self.server_repository.get_server(&db, &server_id).await {
+        let server = match self.server_repository.get_server(&db, &server_id).await {
             Ok(server) => server,
             Err(_) => return Err(Status::not_found("server not found")),
+        };
+        let server: DbServer = match server {
+            Some(server) => server,
+            None => {
+                return Err(Status::not_found("not exist"));
+            }
         };
 
         let server_category = DbServerCategory::new(server, category);
@@ -122,7 +128,10 @@ where
             .await
             .unwrap();
 
-        Ok(Response::new(res.to_message()))
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn update_category(
@@ -158,7 +167,10 @@ where
             .await
             .unwrap();
 
-        Ok(Response::new(res.to_message()))
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn delete_category(

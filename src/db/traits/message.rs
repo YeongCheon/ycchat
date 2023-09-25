@@ -7,7 +7,7 @@ use crate::models::{
 pub trait MessageRepository<C>: Sync + Send {
     async fn get(&self, db: &C, id: &MessageId) -> Result<Option<DbMessage>, String>;
 
-    async fn add(&self, db: &C, message: &DbMessage) -> Result<DbMessage, String>;
+    async fn add(&self, db: &C, message: &DbMessage) -> Result<Option<DbMessage>, String>;
 
     async fn delete(&self, db: &C, id: &MessageId) -> Result<u8, String>;
 

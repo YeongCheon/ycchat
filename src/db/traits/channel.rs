@@ -13,9 +13,9 @@ pub trait ChannelRepository<C>: Sync + Send {
         server_id: &ServerId,
     ) -> Result<Vec<DbChannel>, String>;
 
-    async fn add(&self, db: &C, channel: &DbChannel) -> Result<DbChannel, String>;
+    async fn add(&self, db: &C, channel: &DbChannel) -> Result<Option<DbChannel>, String>;
 
-    async fn update(&self, db: &C, channel: &DbChannel) -> Result<DbChannel, String>;
+    async fn update(&self, db: &C, channel: &DbChannel) -> Result<Option<DbChannel>, String>;
 
     async fn delete(&self, db: &C, id: &ChannelId) -> Result<u8, String>;
 }

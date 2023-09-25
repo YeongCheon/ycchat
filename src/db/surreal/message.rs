@@ -40,12 +40,15 @@ impl MessageRepository<Surreal<Client>> for MessageRepositoryImpl {
         Ok(1)
     }
 
-    async fn add(&self, db: &Surreal<Client>, message: &DbMessage) -> Result<DbMessage, String> {
-        let created: DbMessage = db
+    async fn add(
+        &self,
+        db: &Surreal<Client>,
+        message: &DbMessage,
+    ) -> Result<Option<DbMessage>, String> {
+        let created: Option<DbMessage> = db
             .create((COLLECTION_NAME, message.id.to_string()))
             .content(message)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)

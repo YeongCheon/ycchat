@@ -10,7 +10,7 @@ pub trait ServerMemberRepository<C>: Sync + Send {
         &self,
         db: &C,
         id: &ServerMemberId,
-    ) -> Result<DbServerMember, String>;
+    ) -> Result<Option<DbServerMember>, String>;
 
     async fn get_server_member_by_server_id_and_user_id(
         &self,
@@ -23,13 +23,13 @@ pub trait ServerMemberRepository<C>: Sync + Send {
         &self,
         db: &C,
         server_member: &DbServerMember,
-    ) -> Result<DbServerMember, String>;
+    ) -> Result<Option<DbServerMember>, String>;
 
     async fn update_server_member(
         &self,
         db: &C,
         server_member: &DbServerMember,
-    ) -> Result<DbServerMember, String>;
+    ) -> Result<Option<DbServerMember>, String>;
 
     async fn delete(&self, db: &C, id: &ServerMemberId) -> Result<u8, String>;
 

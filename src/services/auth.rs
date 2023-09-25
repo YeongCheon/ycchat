@@ -111,13 +111,16 @@ where
         let refresh_token = generate_refresh_token(&user_id).unwrap();
         // self.redis_client.set_refresh_token(&refresh_token).unwrap();
 
-        Ok(Response::new(SignUpResponse {
-            email: res.email,
-            user_id: res.id.to_string(),
-            access_token,
-            refresh_token,
-            expires_in: 3600,
-        }))
+        match res {
+            Some(res) => Ok(Response::new(SignUpResponse {
+                email: res.email,
+                user_id: res.id.to_string(),
+                access_token,
+                refresh_token,
+                expires_in: 3600,
+            })),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn sign_in(

@@ -43,12 +43,11 @@ impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl 
         &self,
         db: &Surreal<Client>,
         server_category: &DbServerCategory,
-    ) -> Result<DbServerCategory, String> {
-        let created: DbServerCategory = db
+    ) -> Result<Option<DbServerCategory>, String> {
+        let created: Option<DbServerCategory> = db
             .create((COLLECTION_NAME, server_category.id.to_string()))
             .content(server_category)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)
@@ -58,14 +57,14 @@ impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl 
         &self,
         db: &Surreal<Client>,
         server_category: &DbServerCategory,
-    ) -> Result<DbServerCategory, String> {
+    ) -> Result<Option<DbServerCategory>, String> {
         let res: Option<DbServerCategory> = db
             .update((COLLECTION_NAME, server_category.id.to_string()))
             .content(server_category.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete(&self, db: &Surreal<Client>, id: &ServerCategoryId) -> Result<u8, String> {

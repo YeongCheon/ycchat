@@ -59,6 +59,12 @@ where
         let id = UserId::from_string(name.split('/').collect::<Vec<&str>>()[1]).unwrap();
 
         let user = self.user_repository.get_user(&db, &id).await.unwrap();
+        let user = match user {
+            Some(user) => user,
+            None => {
+                return Err(Status::not_found("not exist"));
+            }
+        };
 
         Ok(Response::new(user.to_message()))
     }
@@ -85,9 +91,12 @@ where
             None => return Err(Status::invalid_argument("invalid arguments")),
         };
 
-        let user_res = self.user_repository.add_user(&db, &user).await.unwrap();
+        let res = self.user_repository.add_user(&db, &user).await.unwrap();
 
-        Ok(Response::new(user_res.to_message()))
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn update_user(
@@ -104,7 +113,14 @@ where
         };
         dbg!(&user);
 
-        let mut exist_user = self.user_repository.get_user(&db, &user.id).await.unwrap();
+        let exist_user = self.user_repository.get_user(&db, &user.id).await.unwrap();
+
+        let mut exist_user = match exist_user {
+            Some(exist_user) => exist_user,
+            None => {
+                return Err(Status::not_found("not exist"));
+            }
+        };
 
         exist_user.display_name = user.display_name;
         exist_user.description = user.description;
@@ -115,7 +131,11 @@ where
             .update_user(&db, &exist_user)
             .await
             .unwrap();
-        Ok(Response::new(res.to_message()))
+
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn delete_user(

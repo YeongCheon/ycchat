@@ -79,7 +79,10 @@ where
 
         let server = self.server_repository.get_server(&db, &id).await.unwrap();
 
-        Ok(Response::new(server.to_message()))
+        match server {
+            Some(server) => Ok(Response::new(server.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn create_server(
@@ -101,7 +104,10 @@ where
             .await
             .unwrap();
 
-        Ok(Response::new(server_res.to_message()))
+        match server_res {
+            Some(server_res) => Ok(Response::new(server_res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn update_server(
@@ -117,11 +123,16 @@ where
             None => return Err(Status::invalid_argument("invalid_arguments")),
         };
 
-        let mut exist_server = self
+        let exist_server = self
             .server_repository
             .get_server(&db, &server.id)
             .await
             .unwrap();
+
+        let mut exist_server = match exist_server {
+            Some(exist_server) => exist_server,
+            None => return Err(Status::not_found("not found")),
+        };
 
         exist_server.display_name = server.display_name;
         exist_server.description = server.description;
@@ -133,7 +144,10 @@ where
             .await
             .unwrap();
 
-        Ok(Response::new(res.to_message()))
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn delete_server(
@@ -191,7 +205,10 @@ where
             .await
             .unwrap();
 
-        Ok(Response::new(server_member.to_message()))
+        match server_member {
+            Some(server_member) => Ok(Response::new(server_member.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn leave_server(

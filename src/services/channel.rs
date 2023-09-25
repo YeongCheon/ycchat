@@ -136,7 +136,7 @@ where
                 let server = self.server_repository.get_server(&db, &server_id).await;
 
                 match server {
-                    Ok(server) => Some(server),
+                    Ok(server) => server,
                     Err(err) => return Err(Status::not_found(err.as_str())),
                 }
             }
@@ -170,7 +170,10 @@ where
 
         let added = self.channel_repository.add(&db, &channel).await.unwrap();
 
-        Ok(Response::new(added.to_message()))
+        match added {
+            Some(channel) => Ok(Response::new(channel.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn list_channel_members(
@@ -217,7 +220,10 @@ where
 
         let res = self.channel_repository.update(&db, &exist).await.unwrap();
 
-        Ok(Response::new(res.to_message()))
+        match res {
+            Some(res) => Ok(Response::new(res.to_message())),
+            None => Err(Status::internal("internal error")),
+        }
     }
 
     async fn delete_channel(
@@ -294,12 +300,12 @@ where
         let message = DbMessage::new(user_id, channel_id, content);
 
         let message = self.message_repository.add(&db, &message).await.unwrap();
-        let message = message.to_message();
 
-        // self.redis_client.chat_publish(&message).unwrap();
-
-        Ok(Response::new(SpeechResponse {
-            result: Some(message),
-        }))
+        match message {
+            Some(message) => Ok(Response::new(SpeechResponse {
+                result: Some(message.to_message()),
+            })),
+            None => Err(Status::internal("internal error")),
+        }
     }
 }

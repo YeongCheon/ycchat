@@ -60,25 +60,32 @@ impl ChannelRepository<Surreal<Client>> for ChannelRepositoryImpl {
         }
     }
 
-    async fn add(&self, db: &Surreal<Client>, channel: &DbChannel) -> Result<DbChannel, String> {
-        let created: DbChannel = db
+    async fn add(
+        &self,
+        db: &Surreal<Client>,
+        channel: &DbChannel,
+    ) -> Result<Option<DbChannel>, String> {
+        let created: Option<DbChannel> = db
             .create((COLLECTION_NAME, channel.id.to_string()))
             .content(channel)
             .await
-            .unwrap()
             .unwrap();
 
         Ok(created)
     }
 
-    async fn update(&self, db: &Surreal<Client>, channel: &DbChannel) -> Result<DbChannel, String> {
+    async fn update(
+        &self,
+        db: &Surreal<Client>,
+        channel: &DbChannel,
+    ) -> Result<Option<DbChannel>, String> {
         let res: Option<DbChannel> = db
             .update((COLLECTION_NAME, channel.id.to_string()))
             .content(channel.clone())
             .await
             .unwrap();
 
-        return Ok(res.unwrap());
+        return Ok(res);
     }
 
     async fn delete(&self, db: &Surreal<Client>, id: &ChannelId) -> Result<u8, String> {
