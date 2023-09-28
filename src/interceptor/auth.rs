@@ -12,6 +12,7 @@ pub fn check_auth(mut req: Request<()>) -> Result<Request<()>, Status> {
     if let Some(t) = req.metadata().get("authorization") {
         let b = t.as_bytes().to_vec();
         let token = String::from_utf8(b).unwrap();
+        let token = token.split(' ').collect::<Vec<&str>>()[1];
 
         let token_data = match decode(&token) {
             Ok(res) => res,

@@ -1,6 +1,7 @@
 use std::env;
 
 lazy_static! {
+    // openssl rand -base64 32 > jwt_secret.key
     pub static ref JWT_SECRET: String =
         env::var("YCCHAT_JWT_SECRET").expect("Missing YCCHAT_JWT_SECRET environment variable.");
     pub static ref PG_HOST: String =
