@@ -43,7 +43,7 @@ DEFINE FIELD author ON server TYPE record<user>;
 DEFINE FIELD icon ON server TYPE option<record<attachment>>;
 DEFINE FIELD create_time ON server TYPE datetime DEFAULT time::now();
 DEFINE FIELD update_time ON server TYPE option<datetime>;
-DEFINE FIELD managers ON server TYPE array<record<user>>;
+// DEFINE FIELD managers ON server TYPE array<record<user>>;
 
 ///////////////////////////////////////////////////////////////
 /* category */
