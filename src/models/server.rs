@@ -42,13 +42,13 @@ pub struct DbServer {
 }
 
 impl DbServer {
-    pub fn new(message: Server) -> Self {
+    pub fn new(owner: UserId, message: Server) -> Self {
         DbServer {
             id: ServerId::new(),
             display_name: message.display_name,
             description: message.description,
-            owner: UserId::new(),  // FIXME
-            author: UserId::new(), // FIXME
+            owner,
+            author: owner,
             icon: None,
             create_time: Datetime::default(),
             update_time: None,

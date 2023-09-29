@@ -91,10 +91,13 @@ where
     ) -> Result<Response<Server>, Status> {
         let db = conn().await;
 
+        let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
+        let user_id = UserId::from_string(&user_id).unwrap();
+
         let req = request.into_inner();
 
         let server = match req.server {
-            Some(server) => DbServer::new(server),
+            Some(server) => DbServer::new(user_id, server),
             None => return Err(Status::invalid_argument("invalid arguments")),
         };
 
@@ -103,11 +106,28 @@ where
             .add_server(&db, &server)
             .await
             .unwrap();
+        let server_res = match server_res {
+            Some(server) => server,
+            None => return Err(Status::internal("failed to create server")),
+        };
 
-        match server_res {
-            Some(server_res) => Ok(Response::new(server_res.to_message())),
-            None => Err(Status::internal("internal error")),
+        let display_name = "username".to_string(); // FIXME
+        let description = "server_description".to_string(); // FIXME
+        let server_id = server_res.id;
+
+        let server_member = DbServerMember::new(display_name, description, server_id, user_id);
+
+        let server_member = self
+            .server_member_repository
+            .add_server_member(&db, &server_member)
+            .await;
+
+        match server_member {
+            Ok(_) => {}
+            Err(_err) => return Err(Status::internal("failed to create server_member")),
         }
+
+        Ok(Response::new(server_res.to_message()))
     }
 
     async fn update_server(
