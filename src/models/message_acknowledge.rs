@@ -1,4 +1,7 @@
-use crate::db::surreal::{deserialize_ulid_id, message_acknowledge::serialize_id};
+use crate::{
+    db::surreal::{deserialize_ulid_id, message_acknowledge::serialize_id},
+    util::pager::PageItem,
+};
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 use ulid::Ulid;
@@ -30,5 +33,11 @@ impl DbMessageAcknowledge {
             user_id,
             create_time: Datetime::default(),
         }
+    }
+}
+
+impl PageItem for DbMessageAcknowledge {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

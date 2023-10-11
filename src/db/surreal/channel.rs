@@ -13,7 +13,7 @@ use crate::{
 
 use super::server::COLLECTION_NAME as SERVER_COLLECTION_NAME;
 
-const COLLECTION_NAME: &str = "channel";
+pub const COLLECTION_NAME: &str = "channel";
 
 #[derive(Clone)]
 pub struct ChannelRepositoryImpl {}
@@ -39,20 +39,32 @@ impl ChannelRepository<Surreal<Client>> for ChannelRepositoryImpl {
         &self,
         db: &Surreal<Client>,
         server_id: &ServerId,
+        page_size: i32,
+        offset_id: Option<ChannelId>,
     ) -> Result<Vec<DbChannel>, String> {
         let server = Thing {
             tb: SERVER_COLLECTION_NAME.to_string(),
             id: Id::String(server_id.to_string()),
         };
 
-        let res = db
-            .query(format!(
-                "SELECT * FROM {COLLECTION_NAME} WHERE server == $server"
-            ))
-            .bind(("server", server))
-            .await
-            .unwrap()
-            .take::<Vec<DbChannel>>(0);
+        let query = match offset_id {
+            Some(offset_id) => db
+                .query(format!(
+                    "SELECT * FROM {COLLECTION_NAME} WHERE server == $server AND id < $offset_id ORDER BY id DESC LIMIT $page_size"
+                ))
+                .bind(("server", server))
+                .bind(("offset_id", offset_id))
+                .bind(("page_size", page_size)),
+
+            None => db
+                .query(format!(
+                    "SELECT * FROM {COLLECTION_NAME} WHERE server == $server ORDER BY id DESC LIMIT $page_size"
+                ))
+                .bind(("server", server))
+                .bind(("page_size", page_size)),
+        };
+
+        let res = query.await.unwrap().take::<Vec<DbChannel>>(0);
 
         match res {
             Ok(res) => Ok(res),

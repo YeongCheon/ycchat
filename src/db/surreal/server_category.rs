@@ -75,24 +75,36 @@ impl ServerCategoryRepository<Surreal<Client>> for ServerCategoryRepositoryImpl 
         Ok(1)
     }
 
+    // TODO: paging
     async fn get_server_categories(
         &self,
         db: &Surreal<Client>,
         server_id: &ServerId,
+        page_size: i32,
+        offset_id: Option<ServerCategoryId>,
     ) -> Result<Vec<DbServerCategory>, String> {
         let server = Thing {
             tb: SERVER_COLLECTION_NAME.to_string(),
             id: Id::String(server_id.to_string()),
         };
 
-        let res = db
+        let query = match offset_id {
+            Some(offset_id) => db
             .query(format!(
-                "SELECT * FROM {COLLECTION_NAME} WHERE server_id == $server"
+                "SELECT * FROM {COLLECTION_NAME} WHERE server_id == $server AND id < $offset_id ORDER BY id DESC LIMIT $page_size"
             ))
-            .bind(("server", server))
-            .await
-            .unwrap()
-            .take::<Vec<DbServerCategory>>(0);
+                .bind(("server", server))
+                .bind(("offset_id", offset_id))
+                .bind(("page_size", page_size)),
+            None => db
+                .query(format!(
+                    "SELECT * FROM {COLLECTION_NAME} WHERE server_id == $server ORDER BY id DESC LIMIT $page_size"
+                ))
+                .bind(("server", server))
+                .bind(("page_size", page_size)),
+        };
+
+        let res = query.await.unwrap().take::<Vec<DbServerCategory>>(0);
 
         match res {
             Ok(res) => Ok(res),

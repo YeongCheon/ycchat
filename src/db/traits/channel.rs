@@ -11,6 +11,8 @@ pub trait ChannelRepository<C>: Sync + Send {
         &self,
         db: &C,
         server_id: &ServerId,
+        page_size: i32,
+        offset_id: Option<ChannelId>,
     ) -> Result<Vec<DbChannel>, String>;
 
     async fn add(&self, db: &C, channel: &DbChannel) -> Result<Option<DbChannel>, String>;

@@ -3,7 +3,7 @@ use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 
-use crate::services::model::Server;
+use crate::{services::model::Server, util::pager::PageItem};
 
 use super::{
     attachment::{Attachment, AttachmentId},
@@ -85,5 +85,11 @@ impl DbServer {
                 nanos: update_time.nanosecond() as i32,
             }),
         }
+    }
+}
+
+impl PageItem for DbServer {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

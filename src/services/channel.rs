@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use prost::Message as _;
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
@@ -15,15 +16,14 @@ use crate::models::message::DbMessage;
 use crate::models::server::ServerId;
 use crate::models::server_category::{DbServerCategory, ServerCategoryId};
 use crate::models::user::UserId;
+use crate::util::pager::PageTokenizer;
 // use crate::redis::RedisClient;
 
 use super::model::Channel as ChannelModel;
 use super::ycchat_channel::channel_server::Channel;
 use super::ycchat_channel::{
-    CreateChannelRequest, DeleteChannelRequest, ListChannelMembersRequest,
-    ListChannelMembersResponse, ListChannelMessagesRequest, ListChannelMessagesResponse,
-    ListServerChannelsRequest, ListServerChannelsResponse, SpeechRequest, SpeechResponse,
-    UpdateChannelRequest,
+    CreateChannelRequest, DeleteChannelRequest, ListServerChannelsRequest,
+    ListServerChannelsResponse, SpeechRequest, SpeechResponse, UpdateChannelRequest,
 };
 
 pub struct ChannelService<SM, M, C, S, SC>
@@ -85,23 +85,59 @@ where
     ) -> Result<Response<ListServerChannelsResponse>, Status> {
         let db = conn().await;
 
-        let parent = request.into_inner().parent;
+        let request = request.into_inner();
+        let parent = request.parent;
+
+        let page_token = match request.page_token.clone() {
+            Some(page_token) => {
+                let page_token = crate::util::pager::get_page_token(page_token);
+                Some(page_token.unwrap())
+            }
+            None => None,
+        };
+
+        let (page_size, offset_id, prev_page_token) = match page_token {
+            Some(page_token) => (
+                page_token.page_size,
+                page_token
+                    .offset_id
+                    .map(|offset_id| ChannelId::from_string(&offset_id).unwrap()),
+                page_token.prev_page_token,
+            ),
+            None => (request.page_size, None, None),
+        };
 
         let parent = parent.split('/').collect::<Vec<&str>>();
         let server_id = ServerId::from_string(parent[1]).unwrap();
 
-        let channels = self
+        // page_size + 1 갯수만큼 데이터 로드 후 next_page_token None, Some 처리
+        let mut channels = self
             .channel_repository
-            .get_server_channels(&db, &server_id)
+            .get_server_channels(&db, &server_id, page_size + 1, offset_id)
             .await
-            .unwrap()
-            .into_iter()
-            .map(|channel| channel.to_message())
-            .collect::<Vec<ChannelModel>>();
+            .unwrap();
+
+        let next_page_token = if channels.len() > usize::try_from(page_size).unwrap() {
+            channels.pop();
+
+            let next_page_token = channels.generate_page_token(page_size, request.page_token);
+            next_page_token.map(|token| {
+                let mut pb_buf = vec![];
+                let _ = token.encode(&mut pb_buf);
+
+                crate::util::base64_encoder::encode_string(pb_buf)
+            })
+        } else {
+            None
+        };
 
         Ok(Response::new(ListServerChannelsResponse {
-            channels,
-            page: None,
+            channels: channels
+                .into_iter()
+                .map(|channel| channel.to_message())
+                .collect::<Vec<ChannelModel>>(),
+            next_page_token,
+            prev_page_token,
         }))
     }
 
@@ -176,13 +212,6 @@ where
         }
     }
 
-    async fn list_channel_members(
-        &self,
-        request: Request<ListChannelMembersRequest>,
-    ) -> Result<Response<ListChannelMembersResponse>, Status> {
-        todo!()
-    }
-
     async fn update_channel(
         &self,
         request: Request<UpdateChannelRequest>,
@@ -251,13 +280,6 @@ where
             .unwrap();
 
         Ok(Response::new(()))
-    }
-
-    async fn list_channel_messages(
-        &self,
-        request: Request<ListChannelMessagesRequest>,
-    ) -> Result<Response<ListChannelMessagesResponse>, Status> {
-        todo!()
     }
 
     async fn speech(

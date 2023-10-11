@@ -64,8 +64,25 @@ impl UserRepository<Surreal<Client>> for UserRepositoryImpl {
         Ok(1)
     }
 
-    async fn get_users(&self, db: &Surreal<Client>) -> Result<Vec<DbUser>, String> {
-        let res = db.select::<Vec<DbUser>>(COLLECTION_NAME).await;
+    async fn get_users(
+        &self,
+        db: &Surreal<Client>,
+        page_size: i32,
+        offset_id: Option<UserId>,
+    ) -> Result<Vec<DbUser>, String> {
+        let query = match offset_id {
+            Some(offset_id) => db.query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE id < $offset_id ORDER BY id DESC LIMIT $page_size"
+            ))
+                .bind(("offset_id", offset_id))
+                .bind(("page_size", page_size)),
+            None => db.query(format!(
+                "SELECT * FROM {COLLECTION_NAME} ORDER BY id DESC LIMIT $page_size"
+            ))
+                .bind(("page_size", page_size)),
+        };
+
+        let res = query.await.unwrap().take::<Vec<DbUser>>(0);
 
         match res {
             Ok(res) => Ok(res),

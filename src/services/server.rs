@@ -1,9 +1,10 @@
+use prost::Message;
 use surrealdb::{engine::remote::ws::Client, sql::Datetime, Surreal};
 use tonic::{Request, Response, Result, Status};
 
 use crate::{
     db::{
-        surreal::{conn, server_member},
+        surreal::conn,
         traits::{server::ServerRepository, server_member::ServerMemberRepository},
     },
     models::{
@@ -11,6 +12,7 @@ use crate::{
         server_member::DbServerMember,
         user::UserId,
     },
+    util::{self, base64_encoder, pager::PageTokenizer},
 };
 
 use super::model::{Server, ServerMember};
@@ -53,14 +55,52 @@ where
         request: Request<ListServersRequest>,
     ) -> Result<Response<ListServersResponse>, Status> {
         let db = conn().await;
+        let request = request.into_inner();
+        let page_token = match request.page_token.clone() {
+            Some(page_token) => {
+                let page_token = util::pager::get_page_token(page_token);
+                Some(page_token.unwrap())
+            }
+            None => None,
+        };
 
-        let list = self.server_repository.get_servers(&db).await.unwrap();
+        let (page_size, offset_id, prev_page_token) = match page_token {
+            Some(page_token) => (
+                page_token.page_size,
+                page_token
+                    .offset_id
+                    .map(|offset_id| ServerId::from_string(&offset_id).unwrap()),
+                page_token.prev_page_token,
+            ),
+            None => (request.page_size, None, None),
+        };
+
+        // page_size + 1 갯수만큼 데이터 로드 후 next_page_token None, Some 처리
+        let mut list = self
+            .server_repository
+            .get_servers(&db, page_size + 1, offset_id)
+            .await
+            .unwrap();
+
+        let next_page_token = if list.len() > usize::try_from(page_size).unwrap() {
+            list.pop();
+            let next_page_token = list.generate_page_token(page_size, request.page_token);
+            next_page_token.map(|token| {
+                let mut pb_buf = vec![];
+                let _ = token.encode(&mut pb_buf);
+
+                base64_encoder::encode_string(pb_buf)
+            })
+        } else {
+            None
+        };
 
         let servers: Vec<Server> = list.iter().map(|item| item.clone().to_message()).collect();
 
         let res = ListServersResponse {
             servers,
-            page: None,
+            next_page_token,
+            prev_page_token,
         };
 
         Ok(Response::new(res))

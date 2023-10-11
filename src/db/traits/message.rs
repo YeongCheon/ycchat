@@ -15,5 +15,7 @@ pub trait MessageRepository<C>: Sync + Send {
         &self,
         db: &C,
         channel_id: &ChannelId,
+        page_size: i32,
+        offset_id: Option<MessageId>,
     ) -> Result<Vec<DbMessage>, String>;
 }

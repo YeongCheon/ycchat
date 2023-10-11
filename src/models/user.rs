@@ -13,6 +13,7 @@ pub type UserId = Ulid;
 use crate::services::model::User as UserMessage;
 
 use crate::db::surreal::{deserialize_ulid_id, user::serialize_id};
+use crate::util::pager::PageItem;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DbUser {
@@ -78,5 +79,11 @@ impl DbUser {
                 nanos: update_time.nanosecond() as i32,
             }),
         }
+    }
+}
+
+impl PageItem for DbUser {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

@@ -10,6 +10,7 @@ use crate::{
         server_category::serialize_id,
     },
     services::model::Category,
+    util::pager::PageItem,
 };
 
 use super::{
@@ -79,5 +80,11 @@ impl DbServerCategory {
         self.description = message.description;
         self.order = message.order;
         self.update_time = Some(Datetime::default());
+    }
+}
+
+impl PageItem for DbServerCategory {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

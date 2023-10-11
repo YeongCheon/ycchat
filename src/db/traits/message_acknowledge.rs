@@ -1,6 +1,6 @@
 use crate::models::{
     message::MessageId,
-    message_acknowledge::{self, DbMessageAcknowledge, MessageAcknowledgeId},
+    message_acknowledge::{DbMessageAcknowledge, MessageAcknowledgeId},
     user::UserId,
 };
 
@@ -23,6 +23,8 @@ pub trait MessageAcknowledgeRepository<C>: Sync + Send {
         &self,
         db: &C,
         message_id: &MessageId,
+        page_size: i32,
+        offset_id: Option<MessageAcknowledgeId>,
     ) -> Result<Vec<DbMessageAcknowledge>, String>;
 
     async fn add(

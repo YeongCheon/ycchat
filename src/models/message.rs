@@ -5,6 +5,7 @@ use crate::{
         user::serialize_id as user_serialize_id,
     },
     services::model::Message,
+    util::pager::PageItem,
 };
 use chrono::Timelike;
 use prost_types::Timestamp;
@@ -75,5 +76,11 @@ impl DbMessage {
                 nanos: update_time.nanosecond() as i32,
             }),
         }
+    }
+}
+
+impl PageItem for DbMessage {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

@@ -1,3 +1,4 @@
+use prost::Message as _;
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::sql::Datetime;
 use surrealdb::Surreal;
@@ -5,6 +6,7 @@ use tonic::{Request, Response, Status};
 
 use crate::db::surreal::conn;
 use crate::db::traits::user::UserRepository;
+use crate::util::pager::PageTokenizer;
 
 use super::model::User;
 use super::ycchat_user::user_server::User as UserServer;
@@ -39,13 +41,54 @@ where
         &self,
         request: Request<ListUsersRequest>,
     ) -> Result<Response<ListUsersResponse>, Status> {
+        let request = request.into_inner();
         let db = conn().await;
+        let page_token = match request.page_token.clone() {
+            Some(page_token) => {
+                let page_token = crate::util::pager::get_page_token(page_token);
+                Some(page_token.unwrap())
+            }
+            None => None,
+        };
 
-        let list = self.user_repository.get_users(&db).await.unwrap();
+        let (page_size, offset_id, prev_page_token) = match page_token {
+            Some(page_token) => (
+                page_token.page_size,
+                page_token
+                    .offset_id
+                    .map(|offset_id| UserId::from_string(&offset_id).unwrap()),
+                page_token.prev_page_token,
+            ),
+            None => (request.page_size, None, None),
+        };
+
+        let mut list = self
+            .user_repository
+            .get_users(&db, page_size + 1, offset_id)
+            .await
+            .unwrap();
+
+        let next_page_token = if list.len() > usize::try_from(page_size).unwrap() {
+            list.pop();
+
+            let next_page_token = list.generate_page_token(page_size, request.page_token);
+            next_page_token.map(|token| {
+                let mut pb_buf = vec![];
+                let _ = token.encode(&mut pb_buf);
+
+                crate::util::base64_encoder::encode_string(pb_buf)
+            })
+        } else {
+            None
+        };
 
         let users: Vec<User> = list.iter().map(|item| item.clone().to_message()).collect();
 
-        let res = ListUsersResponse { users, page: None };
+        let res = ListUsersResponse {
+            users,
+            next_page_token,
+            prev_page_token,
+        };
 
         Ok(Response::new(res))
     }

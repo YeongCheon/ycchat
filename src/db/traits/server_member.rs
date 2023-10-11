@@ -33,7 +33,13 @@ pub trait ServerMemberRepository<C>: Sync + Send {
 
     async fn delete(&self, db: &C, id: &ServerMemberId) -> Result<u8, String>;
 
-    async fn get_server_members(&self, db: &C) -> Result<Vec<DbServerMember>, String>;
+    async fn get_server_members(
+        &self,
+        db: &C,
+        server_id: &ServerId,
+        page_size: i32,
+        offset_id: Option<ServerMemberId>,
+    ) -> Result<Vec<DbServerMember>, String>;
 
     async fn get_server_members_by_server_id(
         &self,

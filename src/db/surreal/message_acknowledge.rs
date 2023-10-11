@@ -80,20 +80,31 @@ impl MessageAcknowledgeRepository<Surreal<Client>> for MessageAcknowledgeReposit
         &self,
         db: &Surreal<Client>,
         message_id: &MessageId,
+        page_size: i32,
+        offset_id: Option<MessageAcknowledgeId>,
     ) -> Result<Vec<DbMessageAcknowledge>, String> {
         let message = Thing {
             tb: MESSAGE_COLLECTION_NAME.to_string(),
             id: Id::String(message_id.to_string()),
         };
 
-        let res = db
+        let query = match offset_id {
+            Some(offset_id) => db
             .query(format!(
-                "SELECT * FROM {COLLECTION_NAME} WHERE message_id == $message_id"
+                "SELECT * FROM {COLLECTION_NAME} WHERE message_id == $message_id AND id < $offset_id ORDER BY id DESC LIMIT $page_size"
             ))
-            .bind(("message_id", message))
-            .await
-            .unwrap()
-            .take::<Vec<DbMessageAcknowledge>>(0);
+                .bind(("message_id", message))
+                .bind(("offset_id", offset_id))
+                .bind(("page_size", page_size)),
+            None => db
+            .query(format!(
+                "SELECT * FROM {COLLECTION_NAME} WHERE message_id == $message_id ORDER BY id DESC LIMIT $page_size"
+            ))
+                .bind(("message_id", message))
+                .bind(("page_size", page_size)),
+        };
+
+        let res = query.await.unwrap().take::<Vec<DbMessageAcknowledge>>(0);
 
         match res {
             Ok(res) => Ok(res),

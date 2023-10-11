@@ -1,11 +1,8 @@
-use db::{
-    surreal::{
-        auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, message::MessageRepositoryImpl,
-        message_acknowledge::MessageAcknowledgeRepositoryImpl, server::ServerRepositoryImpl,
-        server_category::ServerCategoryRepositoryImpl, server_member::ServerMemberRepositoryImpl,
-        user::UserRepositoryImpl,
-    },
-    traits::auth::AuthRepository,
+use db::surreal::{
+    auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, message::MessageRepositoryImpl,
+    message_acknowledge::MessageAcknowledgeRepositoryImpl, server::ServerRepositoryImpl,
+    server_category::ServerCategoryRepositoryImpl, server_member::ServerMemberRepositoryImpl,
+    user::UserRepositoryImpl,
 };
 use services::{
     account::AccountService,
@@ -16,7 +13,7 @@ use services::{
     ycchat_auth::auth_server,
     ycchat_channel::channel_server,
     ycchat_connect::connect_server,
-    ycchat_message::message_service_server,
+    ycchat_message::message_server,
     ycchat_server::member::server_member_server,
     ycchat_server::{category::category_server, server_server},
     ycchat_user::user_server,
@@ -53,8 +50,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
 
-    let message_server = message_service_server::MessageServiceServer::with_interceptor(
-        MessageService::new(message_repository.clone(), message_acknowledge_repository),
+    let message_server = message_server::MessageServer::with_interceptor(
+        MessageService::new(
+            message_repository.clone(),
+            message_acknowledge_repository,
+            server_member_repository.clone(),
+            channel_repository.clone(),
+        ),
         interceptor::auth::check_auth,
     );
 

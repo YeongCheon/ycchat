@@ -1,4 +1,7 @@
-use crate::services::model::{channel::ChannelType as ChannelTypeMessage, Channel};
+use crate::{
+    services::model::{channel::ChannelType as ChannelTypeMessage, Channel},
+    util::pager::PageItem,
+};
 use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -115,5 +118,11 @@ impl ChannelType {
             Self::Direct => ChannelTypeMessage::Direct,
             ChannelType::Server { server } => ChannelTypeMessage::Server,
         }
+    }
+}
+
+impl PageItem for DbChannel {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

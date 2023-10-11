@@ -25,5 +25,7 @@ pub trait ServerCategoryRepository<C>: Sync + Send {
         &self,
         db: &C,
         server_id: &ServerId,
+        page_size: i32,
+        offset_id: Option<ServerCategoryId>,
     ) -> Result<Vec<DbServerCategory>, String>; // FIXME
 }

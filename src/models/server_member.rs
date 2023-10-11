@@ -4,6 +4,7 @@ use crate::db::surreal::{
     user::serialize_id as user_serialize_id,
 };
 use crate::services::model::ServerMember;
+use crate::util::pager::PageItem;
 use chrono::Timelike;
 use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -67,5 +68,11 @@ impl DbServerMember {
                 nanos: update_time.nanosecond() as i32,
             }),
         }
+    }
+}
+
+impl PageItem for DbServerMember {
+    fn get_item_id(&self) -> String {
+        self.id.to_string()
     }
 }

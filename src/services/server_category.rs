@@ -1,3 +1,4 @@
+use prost::Message as _;
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
@@ -9,6 +10,7 @@ use crate::models::server::DbServer;
 use crate::models::server::ServerId;
 use crate::models::server_category::DbServerCategory;
 use crate::models::server_category::ServerCategoryId;
+use crate::util::pager::PageTokenizer;
 
 use super::model::Category as CategoryModel;
 use super::ycchat_server::category::category_server::Category;
@@ -52,22 +54,57 @@ where
     ) -> Result<Response<ListCategoriesResponse>, Status> {
         let db = conn().await;
 
-        let parent = request.into_inner().parent;
+        let request = request.into_inner();
+        let parent = request.parent;
         let parent = parent.split('/').collect::<Vec<&str>>();
         let server_id = ServerId::from_string(parent[1]).unwrap();
 
-        let list = self
+        let page_token = match request.page_token.clone() {
+            Some(page_token) => {
+                let page_token = crate::util::pager::get_page_token(page_token);
+                Some(page_token.unwrap())
+            }
+            None => None,
+        };
+
+        let (page_size, offset_id, prev_page_token) = match page_token {
+            Some(page_token) => (
+                page_token.page_size,
+                page_token
+                    .offset_id
+                    .map(|offset_id| ServerCategoryId::from_string(&offset_id).unwrap()),
+                page_token.prev_page_token,
+            ),
+            None => (request.page_size, None, None),
+        };
+
+        let mut list = self
             .server_category_repository
-            .get_server_categories(&db, &server_id)
+            .get_server_categories(&db, &server_id, page_size + 1, offset_id)
             .await
-            .unwrap()
-            .into_iter()
-            .map(|category| category.to_message())
-            .collect::<Vec<CategoryModel>>();
+            .unwrap();
+
+        let next_page_token = if list.len() > usize::try_from(page_size).unwrap() {
+            list.pop();
+
+            let next_page_token = list.generate_page_token(page_size, request.page_token);
+            next_page_token.map(|token| {
+                let mut pb_buf = vec![];
+                let _ = token.encode(&mut pb_buf);
+
+                crate::util::base64_encoder::encode_string(pb_buf)
+            })
+        } else {
+            None
+        };
 
         Ok(Response::new(ListCategoriesResponse {
-            categories: list,
-            page: None,
+            categories: list
+                .into_iter()
+                .map(|category| category.to_message())
+                .collect::<Vec<CategoryModel>>(),
+            next_page_token,
+            prev_page_token,
         }))
     }
 
