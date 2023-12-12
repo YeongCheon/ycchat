@@ -1,10 +1,14 @@
+use futures::lock::Mutex;
+use std::borrow::BorrowMut;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use prost::Message as _;
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::Surreal;
 use tonic::{Request, Response, Status};
 
+use crate::chat::broadcaster::Broadcaster;
 use crate::db::surreal::conn;
 use crate::db::traits::channel::ChannelRepository;
 use crate::db::traits::message::MessageRepository;
@@ -39,7 +43,7 @@ where
     channel_repository: C,
     server_repository: S,
     server_category_repository: SC,
-    // redis_client: RedisClient,
+    broadcaster: Arc<Mutex<Broadcaster>>, // redis_client: RedisClient,
 }
 
 impl<SM, M, C, S, SC> ChannelService<SM, M, C, S, SC>
@@ -56,16 +60,15 @@ where
         channel_repository: C,
         server_repository: S,
         server_category_repository: SC,
+        broadcaster: Arc<Mutex<Broadcaster>>,
     ) -> Self {
-        // let redis_client = RedisClient::new();
-
         ChannelService {
             server_member_repository,
             message_repository,
             channel_repository,
             server_repository,
             server_category_repository,
-            // redis_client,
+            broadcaster,
         }
     }
 }
@@ -322,12 +325,21 @@ where
         let message = DbMessage::new(user_id, channel_id, content);
 
         let message = self.message_repository.add(&db, &message).await.unwrap();
+        let message = match message {
+            Some(message) => message.to_message(),
+            None => return Err(Status::internal("internal error")),
+        };
 
-        match message {
-            Some(message) => Ok(Response::new(SpeechResponse {
-                result: Some(message.to_message()),
-            })),
-            None => Err(Status::internal("internal error")),
-        }
+        {
+            let message = message.clone();
+
+            let user_ids: Vec<UserId> = vec![];
+            let broadcaster = self.broadcaster.lock().await;
+            broadcaster.send_msg(&user_ids, message).await;
+        };
+
+        Ok(Response::new(SpeechResponse {
+            result: Some(message),
+        }))
     }
 }

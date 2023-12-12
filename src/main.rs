@@ -1,3 +1,7 @@
+use futures::lock::Mutex;
+use std::sync::Arc;
+
+use chat::broadcaster::Broadcaster;
 use db::surreal::{
     auth::AuthRepositoryImpl, channel::ChannelRepositoryImpl, message::MessageRepositoryImpl,
     message_acknowledge::MessageAcknowledgeRepositoryImpl, server::ServerRepositoryImpl,
@@ -21,8 +25,8 @@ use services::{
 // use services::ycchat_server::member::server_member_server::ServerMember as ServerMemberServer;
 use tonic::transport::Server;
 
-// mod chat;
 mod auth;
+mod chat;
 mod db;
 mod interceptor;
 mod models;
@@ -48,6 +52,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let message_repository = MessageRepositoryImpl::new().await;
     let message_acknowledge_repository = MessageAcknowledgeRepositoryImpl::new().await;
 
+    let broadcaster = Broadcaster::new();
+    let broadcaster_arc: Arc<Mutex<Broadcaster>> = Arc::new(Mutex::new(broadcaster));
+
     let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
 
     let message_server = message_server::MessageServer::with_interceptor(
@@ -61,11 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let connect_server = connect_server::ConnectServer::with_interceptor(
-        ConnectService::new(
-            channel_repository.clone(),
-            server_repository.clone(),
-            server_member_repository.clone(),
-        ),
+        ConnectService::new(broadcaster_arc.clone()),
         interceptor::auth::check_auth,
     );
 
@@ -108,6 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             channel_repository,
             server_repository,
             server_category_repository,
+            broadcaster_arc.clone(),
         ),
         interceptor::auth::check_auth,
     );
