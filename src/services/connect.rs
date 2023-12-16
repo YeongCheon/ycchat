@@ -1,4 +1,6 @@
-use super::ycchat_connect::{self, connect_server::Connect, ConnectResponse};
+use super::ycchat::v1::services::connect::{
+    self, connect_service_server::ConnectService as Connect, ConnectResponse,
+};
 use crate::chat::broadcaster::{Broadcaster, Stream as BroadcastStream};
 use crate::db::traits::channel::ChannelRepository;
 use crate::models::user::UserId;
@@ -26,7 +28,7 @@ impl Connect for ConnectService {
 
     async fn conn(
         &self,
-        request: tonic::Request<ycchat_connect::ConnectRequest>,
+        request: tonic::Request<connect::ConnectRequest>,
     ) -> Result<tonic::Response<Self::ConnStream>, tonic::Status> {
         let user_id = request.metadata().get("user_id").unwrap().to_str().unwrap();
         let user_id = UserId::from_string(&user_id).unwrap();

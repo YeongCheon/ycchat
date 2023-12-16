@@ -23,9 +23,9 @@ use crate::models::user::UserId;
 use crate::util::pager::PageTokenizer;
 // use crate::redis::RedisClient;
 
-use super::model::Channel as ChannelModel;
-use super::ycchat_channel::channel_server::Channel;
-use super::ycchat_channel::{
+use super::ycchat::v1::models::Channel as ChannelModel;
+use super::ycchat::v1::services::channel::channel_service_server::ChannelService as Channel;
+use super::ycchat::v1::services::channel::{
     CreateChannelRequest, DeleteChannelRequest, ListServerChannelsRequest,
     ListServerChannelsResponse, SpeechRequest, SpeechResponse, UpdateChannelRequest,
 };

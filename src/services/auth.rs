@@ -14,8 +14,8 @@ use crate::models::auth::DbAuth;
 use crate::models::user::UserId;
 // use crate::redis::RedisClient;
 
-use super::ycchat_auth::auth_server::Auth;
-use super::ycchat_auth::{
+use super::ycchat::v1::services::auth::auth_service_server::AuthService as Auth;
+use super::ycchat::v1::services::auth::{
     RefreshTokenRequest, RefreshTokenResponse, RevokeRefreshTokenRequest, SignInRequest,
     SignInResponse, SignUpRequest, SignUpResponse,
 };

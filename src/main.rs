@@ -13,16 +13,18 @@ use services::{
     auth::AuthService,
     connect::ConnectService,
     message::MessageService,
-    ycchat_account::account_server,
-    ycchat_auth::auth_server,
-    ycchat_channel::channel_server,
-    ycchat_connect::connect_server,
-    ycchat_message::message_server,
-    ycchat_server::member::server_member_server,
-    ycchat_server::{category::category_server, server_server},
-    ycchat_user::user_server,
+    ycchat::v1::services::{
+        account::account_service_server,
+        auth::auth_service_server,
+        channel::channel_service_server,
+        connect::connect_service_server,
+        message::message_service_server,
+        server::member::server_member_service_server,
+        server::{category::category_service_server, server_service_server},
+        user::user_service_server,
+    },
 };
-// use services::ycchat_server::member::server_member_server::ServerMember as ServerMemberServer;
+// use services::server::member::server_member_server::ServerMember as ServerMemberServer;
 use tonic::transport::Server;
 
 mod auth;
@@ -55,9 +57,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let broadcaster = Broadcaster::new();
     let broadcaster_arc: Arc<Mutex<Broadcaster>> = Arc::new(Mutex::new(broadcaster));
 
-    let auth_server = auth_server::AuthServer::new(AuthService::new(auth_repository.clone()));
+    let auth_service_server =
+        auth_service_server::AuthServiceServer::new(AuthService::new(auth_repository.clone()));
 
-    let message_server = message_server::MessageServer::with_interceptor(
+    let message_service_server = message_service_server::MessageServiceServer::with_interceptor(
         MessageService::new(
             message_repository.clone(),
             message_acknowledge_repository,
@@ -67,23 +70,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         interceptor::auth::check_auth,
     );
 
-    let connect_server = connect_server::ConnectServer::with_interceptor(
+    let connect_service_server = connect_service_server::ConnectServiceServer::with_interceptor(
         ConnectService::new(broadcaster_arc.clone()),
         interceptor::auth::check_auth,
     );
 
-    let account_server = account_server::AccountServer::with_interceptor(
+    let account_service_server = account_service_server::AccountServiceServer::with_interceptor(
         AccountService::new(auth_repository),
         interceptor::auth::check_auth,
     );
 
-    // // let chat_service_server = chat::get_chat_service_server();
-    let user_server = user_server::UserServer::with_interceptor(
+    // // let chat_service_service_server = chat::get_chat_service_service_server();
+    let user_service_server = user_service_server::UserServiceServer::with_interceptor(
         services::user::UserService::new(user_repository).await,
         interceptor::auth::check_auth,
     );
 
-    let server_server = server_server::ServerServer::with_interceptor(
+    let server_service_server = server_service_server::ServerServiceServer::with_interceptor(
         services::server::ServerService::new(
             server_repository.clone(),
             server_member_repository.clone(),
@@ -91,20 +94,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         interceptor::auth::check_auth,
     );
 
-    let server_category_server = category_server::CategoryServer::with_interceptor(
-        services::server_category::ServerCategoryService::new(
-            server_repository.clone(),
-            server_category_repository.clone(),
-        ),
-        interceptor::auth::check_auth,
-    );
+    let server_category_service_server =
+        category_service_server::CategoryServiceServer::with_interceptor(
+            services::server_category::ServerCategoryService::new(
+                server_repository.clone(),
+                server_category_repository.clone(),
+            ),
+            interceptor::auth::check_auth,
+        );
 
-    let server_member_server = server_member_server::ServerMemberServer::with_interceptor(
-        services::server_member::ServerMemberService::new(server_member_repository.clone()),
-        interceptor::auth::check_auth,
-    );
+    let server_member_service_server =
+        server_member_service_server::ServerMemberServiceServer::with_interceptor(
+            services::server_member::ServerMemberService::new(server_member_repository.clone()),
+            interceptor::auth::check_auth,
+        );
 
-    let channel_server = channel_server::ChannelServer::with_interceptor(
+    let channel_service_server = channel_service_server::ChannelServiceServer::with_interceptor(
         services::channel::ChannelService::new(
             server_member_repository,
             message_repository,
@@ -117,21 +122,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     Server::builder()
-        .add_service(connect_server)
-        .add_service(auth_server)
-        .add_service(account_server)
-        .add_service(user_server)
-        .add_service(server_server)
-        .add_service(server_category_server)
-        .add_service(server_member_server)
-        .add_service(channel_server)
-        .add_service(message_server)
+        .add_service(connect_service_server)
+        .add_service(auth_service_server)
+        .add_service(account_service_server)
+        .add_service(user_service_server)
+        .add_service(server_service_server)
+        .add_service(server_category_service_server)
+        .add_service(server_member_service_server)
+        .add_service(channel_service_server)
+        .add_service(message_service_server)
         .serve(addr)
         .await?;
 
     // println!("Start Server...");
     // Server::builder()
-    //     // .add_service(chat_service_server)
+    //     // .add_service(chat_service_service_server)
     //     .serve(addr)
     //     .await?;
 

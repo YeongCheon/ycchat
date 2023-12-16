@@ -4,7 +4,7 @@ use crate::{
         channel::serialize_id as channel_serialize_id, deserialize_ulid_id, message::serialize_id,
         user::serialize_id as user_serialize_id,
     },
-    services::model::Message,
+    services::ycchat::v1::models::Message,
     util::pager::PageItem,
 };
 use chrono::Timelike;

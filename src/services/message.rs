@@ -21,9 +21,9 @@ use crate::{
 };
 
 use super::{
-    model::Message,
-    ycchat_message::{
-        message_server::Message as ProtoMessageService, AcknowledgeMessageRequest,
+    ycchat::v1::models::Message,
+    ycchat::v1::services::message::{
+        message_service_server::MessageService as ProtoMessageService, AcknowledgeMessageRequest,
         DeleteMessageRequest, ListMessagesRequest, ListMessagesResponse, UpdateMessageRequest,
     },
 };

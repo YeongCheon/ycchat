@@ -12,10 +12,10 @@ use crate::models::server_category::DbServerCategory;
 use crate::models::server_category::ServerCategoryId;
 use crate::util::pager::PageTokenizer;
 
-use super::model::Category as CategoryModel;
-use super::ycchat_server::category::category_server::Category;
-use super::ycchat_server::category::CreateCategoryRequest;
-use super::ycchat_server::category::{
+use super::ycchat::v1::models::Category as CategoryModel;
+use super::ycchat::v1::services::server::category::category_service_server::CategoryService as Category;
+use super::ycchat::v1::services::server::category::CreateCategoryRequest;
+use super::ycchat::v1::services::server::category::{
     DeleteCategoryRequest, GetCategoryRequest, GetCategoryResponse, ListCategoriesRequest,
     ListCategoriesResponse, UpdateCategoryRequest,
 };

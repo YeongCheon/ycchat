@@ -9,7 +9,7 @@ use crate::{
         deserialize_ulid_id, server::serialize_id as server_serialize_id,
         server_category::serialize_id,
     },
-    services::model::Category,
+    services::ycchat::v1::models::Category,
     util::pager::PageItem,
 };
 

@@ -10,7 +10,9 @@ use crate::{
     models::user::UserId,
 };
 
-use super::ycchat_account::{account_server::Account, DeleteAccountRequest, UpdatePasswordRequest};
+use super::ycchat::v1::services::account::{
+    account_service_server::AccountService as Account, DeleteAccountRequest, UpdatePasswordRequest,
+};
 
 pub struct AccountService<U>
 where

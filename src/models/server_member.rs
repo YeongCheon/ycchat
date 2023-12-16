@@ -3,7 +3,7 @@ use crate::db::surreal::{
     deserialize_ulid_id, server::serialize_id as server_serialize_id, server_member::serialize_id,
     user::serialize_id as user_serialize_id,
 };
-use crate::services::model::ServerMember;
+use crate::services::ycchat::v1::models::ServerMember;
 use crate::util::pager::PageItem;
 use chrono::Timelike;
 use prost_types::Timestamp;

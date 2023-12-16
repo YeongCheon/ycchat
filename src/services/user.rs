@@ -8,9 +8,9 @@ use crate::db::surreal::conn;
 use crate::db::traits::user::UserRepository;
 use crate::util::pager::PageTokenizer;
 
-use super::model::User;
-use super::ycchat_user::user_server::User as UserServer;
-use super::ycchat_user::{
+use super::ycchat::v1::models::User;
+use super::ycchat::v1::services::user::user_service_server::UserService as UserServer;
+use super::ycchat::v1::services::user::{
     CreateUserRequest, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse,
     UpdateUserRequest,
 };

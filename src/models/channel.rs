@@ -1,5 +1,5 @@
 use crate::{
-    services::model::{channel::ChannelType as ChannelTypeMessage, Channel},
+    services::ycchat::v1::models::{channel::ChannelType as ChannelTypeMessage, Channel},
     util::pager::PageItem,
 };
 use chrono::Timelike;

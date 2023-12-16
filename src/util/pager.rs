@@ -1,6 +1,6 @@
 use prost::{DecodeError, Message};
 
-use crate::services::model::PageToken;
+use crate::services::ycchat::v1::models::PageToken;
 
 pub fn get_page_token(page_token: String) -> Result<PageToken, DecodeError> {
     let decoded = super::base64_encoder::decode(page_token).unwrap();

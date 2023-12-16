@@ -15,9 +15,9 @@ use crate::{
     util::{self, base64_encoder, pager::PageTokenizer},
 };
 
-use super::model::{Server, ServerMember};
-use super::ycchat_server::server_server::Server as ServerServer;
-use super::ycchat_server::{
+use super::ycchat::v1::models::{Server, ServerMember};
+use super::ycchat::v1::services::server::server_service_server::ServerService as ServerServer;
+use super::ycchat::v1::services::server::{
     CreateServerRequest, DeleteServerRequest, EnterServerRequest, GetServerRequest,
     LeaveServerRequest, ListServersRequest, ListServersResponse, UpdateServerRequest,
 };

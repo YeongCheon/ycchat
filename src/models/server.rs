@@ -3,7 +3,7 @@ use prost_types::Timestamp;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Datetime;
 
-use crate::{services::model::Server, util::pager::PageItem};
+use crate::{services::ycchat::v1::models::Server, util::pager::PageItem};
 
 use super::{
     attachment::{Attachment, AttachmentId},

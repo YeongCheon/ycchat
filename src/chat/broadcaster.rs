@@ -3,12 +3,14 @@ use std::{
     hash::Hash,
 };
 
-use crate::services::ycchat_connect::{server_signal::Payload, ChannelReceiveMessage};
+use crate::services::ycchat::v1::services::connect::{
+    server_signal::Payload, ChannelReceiveMessage,
+};
 use crate::{
     models::user::UserId,
     services::{
-        model::Message,
-        ycchat_connect::{ConnectResponse, ServerSignal},
+        ycchat::v1::models::Message,
+        ycchat::v1::services::connect::{ConnectResponse, ServerSignal},
     },
 };
 use tokio::sync::{

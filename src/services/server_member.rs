@@ -9,10 +9,10 @@ use crate::models::server::ServerId;
 use crate::models::server_member::ServerMemberId;
 use crate::util::pager::PageTokenizer;
 
-use super::model::ServerMember;
+use super::ycchat::v1::models::ServerMember;
 
-use super::ycchat_server::member::server_member_server::ServerMember as ServerMemberServer;
-use super::ycchat_server::member::{
+use super::ycchat::v1::services::server::member::server_member_service_server::ServerMemberService as ServerMemberServer;
+use super::ycchat::v1::services::server::member::{
     GetServerMemberRequest, ListServerMembersRequest, ListServerMembersResponse,
 };
 

@@ -10,7 +10,7 @@ use super::attachment::Attachment;
 
 pub type UserId = Ulid;
 
-use crate::services::model::User as UserMessage;
+use crate::services::ycchat::v1::models::User as UserMessage;
 
 use crate::db::surreal::{deserialize_ulid_id, user::serialize_id};
 use crate::util::pager::PageItem;
