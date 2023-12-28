@@ -2,6 +2,8 @@ pub mod account;
 pub mod auth;
 pub mod channel;
 pub mod connect;
+pub mod me_server;
+pub mod me_user;
 pub mod message;
 pub mod server;
 pub mod server_category;
@@ -49,6 +51,16 @@ pub mod ycchat {
 
             pub mod channel {
                 tonic::include_proto!("ycchat.v1.services.channel");
+            }
+
+            pub mod me {
+                pub mod server {
+                    tonic::include_proto!("ycchat.v1.services.me.server");
+                }
+
+                pub mod user {
+                    tonic::include_proto!("ycchat.v1.services.me.user");
+                }
             }
         }
     }

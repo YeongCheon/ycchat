@@ -5,6 +5,7 @@ use tonic::async_trait;
 use super::super::traits::user::UserRepository;
 use crate::models::user::{DbUser, UserId};
 
+#[derive(Clone)]
 pub struct UserRepositoryImpl {}
 
 impl UserRepositoryImpl {

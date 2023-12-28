@@ -18,6 +18,7 @@ use services::{
         auth::auth_service_server,
         channel::channel_service_server,
         connect::connect_service_server,
+        me::user::me_user_service_server,
         message::message_service_server,
         server::member::server_member_service_server,
         server::{category::category_service_server, server_service_server},
@@ -82,7 +83,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // // let chat_service_service_server = chat::get_chat_service_service_server();
     let user_service_server = user_service_server::UserServiceServer::with_interceptor(
-        services::user::UserService::new(user_repository).await,
+        services::user::UserService::new(user_repository.clone()).await,
+        interceptor::auth::check_auth,
+    );
+
+    let me_user_service_server = me_user_service_server::MeUserServiceServer::with_interceptor(
+        services::me_user::MeUserService::new(user_repository).await,
         interceptor::auth::check_auth,
     );
 
@@ -131,6 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(server_member_service_server)
         .add_service(channel_service_server)
         .add_service(message_service_server)
+        .add_service(me_user_service_server)
         .serve(addr)
         .await?;
 

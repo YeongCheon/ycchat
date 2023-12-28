@@ -14,6 +14,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "protobuf/ycchat/v1/services/auth/auth.proto",
                 "protobuf/ycchat/v1/services/account/account.proto",
                 "protobuf/ycchat/v1/services/connect/connect.proto",
+                "protobuf/ycchat/v1/services/me/server/me_server.proto",
+                "protobuf/ycchat/v1/services/me/user/me_user.proto",
             ],
             &["protobuf/"],
         )?;

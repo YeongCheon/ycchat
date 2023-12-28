@@ -14,7 +14,7 @@ pub fn check_auth(mut req: Request<()>) -> Result<Request<()>, Status> {
         let token = String::from_utf8(b).unwrap();
         let token = token.split(' ').collect::<Vec<&str>>()[1];
 
-        let token_data = match decode(&token) {
+        let token_data = match decode(token) {
             Ok(res) => res,
             Err(err) => {
                 return Err(Status::unauthenticated(err.to_string()));

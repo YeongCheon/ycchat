@@ -1,4 +1,7 @@
-use crate::models::server::{DbServer, ServerId};
+use crate::models::{
+    server::{DbServer, ServerId},
+    user::UserId,
+};
 
 #[tonic::async_trait]
 pub trait ServerRepository<C>: Sync + Send {
@@ -9,6 +12,14 @@ pub trait ServerRepository<C>: Sync + Send {
     async fn get_servers(
         &self,
         db: &C,
+        page_size: i32,
+        offset_id: Option<ServerId>,
+    ) -> Result<Vec<DbServer>, String>;
+
+    async fn get_joined_servers(
+        &self,
+        db: &C,
+        user_id: &UserId,
         page_size: i32,
         offset_id: Option<ServerId>,
     ) -> Result<Vec<DbServer>, String>;

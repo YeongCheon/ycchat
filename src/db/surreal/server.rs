@@ -4,7 +4,10 @@ use tonic::async_trait;
 
 use crate::{
     db::traits::server::ServerRepository,
-    models::server::{DbServer, ServerId},
+    models::{
+        server::{DbServer, ServerId},
+        user::UserId,
+    },
 };
 
 #[derive(Clone)]
@@ -97,6 +100,16 @@ impl ServerRepository<Surreal<Client>> for ServerRepositoryImpl {
             Ok(res) => Ok(res),
             Err(e) => Err(e.to_string()),
         }
+    }
+
+    async fn get_joined_servers(
+        &self,
+        db: &Surreal<Client>,
+        user_id: &UserId,
+        page_size: i32,
+        offset_id: Option<ServerId>,
+    ) -> Result<Vec<DbServer>, String> {
+        todo!()
     }
 }
 

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::user::UserId;
 
 pub const ALGORITHM: jsonwebtoken::Algorithm = jsonwebtoken::Algorithm::HS256;
-const ISS: &str = "antchat";
+const ISS: &str = "ycchat";
 const EXP_ACCESS_TOKEN: u64 = 3600; // 1 hour
 const EXP_REFRESH_TOKEN: u64 = 3600 * 24 * 14; // 14 day
 
@@ -21,11 +21,11 @@ pub struct Claims {
 }
 
 pub fn generate_access_token(user_id: &UserId) -> Result<String, jsonwebtoken::errors::Error> {
-    let key = EncodingKey::from_secret(JWT_SECRET.as_ref());
+    let key = EncodingKey::from_secret(JWT_SECRET.as_bytes());
 
     let claims = Claims {
         sub: "access_token".to_string(),
-        aud: user_id.clone(),
+        aud: *user_id,
         iss: ISS.to_string(),
         iat: get_current_timestamp(),
         exp: get_current_timestamp() + EXP_ACCESS_TOKEN,
@@ -35,11 +35,11 @@ pub fn generate_access_token(user_id: &UserId) -> Result<String, jsonwebtoken::e
 }
 
 pub fn generate_refresh_token(user_id: &UserId) -> Result<String, jsonwebtoken::errors::Error> {
-    let key = EncodingKey::from_secret(JWT_SECRET.as_ref());
+    let key = EncodingKey::from_secret(JWT_SECRET.as_bytes());
 
     let claims = Claims {
         sub: "refresh_token".to_string(),
-        aud: user_id.clone(),
+        aud: *user_id,
         iss: ISS.to_string(),
         iat: get_current_timestamp(),
         exp: get_current_timestamp() + EXP_REFRESH_TOKEN,
@@ -51,15 +51,9 @@ pub fn generate_refresh_token(user_id: &UserId) -> Result<String, jsonwebtoken::
 pub fn decode(
     jwt_token: &str,
 ) -> Result<jsonwebtoken::TokenData<Claims>, jsonwebtoken::errors::Error> {
-    let key = DecodingKey::from_secret(JWT_SECRET.as_ref());
-    let validation = Validation::new(ALGORITHM);
+    let key = DecodingKey::from_secret(JWT_SECRET.as_bytes());
+    let mut validation = Validation::new(ALGORITHM);
+    validation.validate_aud = false;
 
-    jwt_decode::<Claims>(jwt_token, &key, &validation)
-
-    // let token_data = match decode::<Claims>(&token, &key, &validation) {
-    //     Ok(res) => res,
-    //     Err(err) => {
-    //         return Err(Status::unauthenticated(err.to_string()));
-    //     }
-    // };
+    jwt_decode::<Claims>(jwt_token.trim(), &key, &validation)
 }
